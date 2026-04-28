@@ -1,0 +1,24 @@
+import RoleLayout from './RoleLayout.jsx';
+
+const menu = [
+  { to: '/production_manager',           end: true, icon: '📊', label: 'Dashboard' },
+  { to: '/production_manager/orders',               icon: '📋', label: 'Manufacturing Orders' },
+  { to: '/production_manager/schedule',             icon: '📅', label: 'Production Schedule' },
+  { to: '/production_manager/resources',            icon: '👥', label: 'Resources' },
+  { to: '/production_manager/batches',              icon: '🏷️', label: 'Batch Numbers' },
+  { to: '/production_manager/reports',              icon: '📊', label: 'Reports' },
+];
+
+const titles = {
+  '/production_manager':            'Production Dashboard',
+  '/production_manager/orders':     'Manufacturing Orders',
+  '/production_manager/orders/:id': 'Order Detail',
+  '/production_manager/schedule':   'Production Schedule',
+  '/production_manager/resources':  'Resources',
+  '/production_manager/batches':    'Batch Numbers',
+  '/production_manager/reports':    'Reports',
+};
+
+export default function ProductionManagerLayout() {
+  return <RoleLayout menu={menu} titles={titles} defaultTitle="Production Dashboard" />;
+}

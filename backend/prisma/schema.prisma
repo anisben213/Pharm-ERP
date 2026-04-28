@@ -1,0 +1,350 @@
+// Prisma schema — Pharma ERP with end-to-end batch traceability
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ACTORS / RBAC
+// ============================================================
+enum Role {
+  ADMIN
+  PURCHASER
+  STOCK_MANAGER
+  WAREHOUSE_KEEPER
+  PRODUCTION_MANAGER
+  QUALITY_CONTROLLER
+  LAB_TECHNICIAN
+  SALES_AGENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role     @default(SALES_AGENT)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  purchases     PurchaseOrder[]    @relation("PurchaseCreatedBy")
+  productions   ProductionOrder[]  @relation("ProductionCreatedBy")
+  qualityChecks QualityCheck[]     @relation("QCInspectedBy")
+  sales         SalesOrder[]       @relation("SalesCreatedBy")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================
+// CATALOG
+// ============================================================
+enum ProductType {
+  RAW_MATERIAL
+  FINISHED_PRODUCT
+  PACKAGING
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  sku         String      @unique
+  name        String
+  type        ProductType
+  unit        String      @default("unit")
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  batches             Batch[]
+  bomComponents       BOMComponent[] @relation("ComponentProduct")
+  bomFinishedProducts BOM[]          @relation("FinishedProduct")
+  purchaseLines       PurchaseLine[]
+  salesLines          SalesLine[]
+}
+
+// Bill of Materials — links finished product to its raw components
+model BOM {
+  id                String         @id @default(cuid())
+  finishedProductId String
+  finishedProduct   Product        @relation("FinishedProduct", fields: [finishedProductId], references: [id])
+  version           Int            @default(1)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  components        BOMComponent[]
+
+  @@unique([finishedProductId, version])
+}
+
+model BOMComponent {
+  id        String  @id @default(cuid())
+  bomId     String
+  bom       BOM     @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation("ComponentProduct", fields: [productId], references: [id])
+  quantity  Decimal @db.Decimal(18, 4)
+}
+
+// ============================================================
+// SUPPLIERS / CUSTOMERS
+// ============================================================
+model Supplier {
+  id        String          @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime        @default(now())
+  purchases PurchaseOrder[]
+}
+
+model Customer {
+  id        String       @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime     @default(now())
+  sales     SalesOrder[]
+}
+
+// ============================================================
+// BATCHES — core of end-to-end traceability
+// ============================================================
+enum BatchStatus {
+  CREATED
+  IN_QUARANTINE
+  APPROVED
+  REJECTED
+  IN_PRODUCTION
+  RELEASED
+  SOLD
+  RECALLED
+  EXPIRED
+}
+
+model Batch {
+  id              String      @id @default(cuid())
+  batchNumber     String      @unique
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id])
+  quantity        Decimal     @db.Decimal(18, 4)
+  remainingQty    Decimal     @db.Decimal(18, 4)
+  manufacturedAt  DateTime?
+  expiryDate      DateTime?
+  status          BatchStatus @default(CREATED)
+  // Concurrency control — optimistic locking
+  version         Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Traceability links
+  purchaseLineId  String?     @unique
+  purchaseLine    PurchaseLine? @relation(fields: [purchaseLineId], references: [id])
+
+  productionOrderId String?
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+
+  // Upstream/downstream genealogy
+  parentLinks     BatchGenealogy[] @relation("ChildBatch")
+  childLinks      BatchGenealogy[] @relation("ParentBatch")
+
+  stockMovements  StockMovement[]
+  qualityChecks   QualityCheck[]
+  salesLines      SalesLine[]
+
+  @@index([productId])
+  @@index([status])
+}
+
+// Raw-material batch -> finished-product batch
+model BatchGenealogy {
+  id             String @id @default(cuid())
+  parentBatchId  String
+  childBatchId   String
+  consumedQty    Decimal @db.Decimal(18, 4)
+  parentBatch    Batch   @relation("ParentBatch", fields: [parentBatchId], references: [id])
+  childBatch     Batch   @relation("ChildBatch",  fields: [childBatchId],  references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([parentBatchId, childBatchId])
+  @@index([childBatchId])
+}
+
+// ============================================================
+// STOCK
+// ============================================================
+enum MovementType {
+  IN_PURCHASE
+  IN_PRODUCTION
+  OUT_PRODUCTION
+  OUT_SALES
+  ADJUSTMENT
+  RECALL
+}
+
+model StockMovement {
+  id        String       @id @default(cuid())
+  batchId   String
+  batch     Batch        @relation(fields: [batchId], references: [id])
+  type      MovementType
+  quantity  Decimal      @db.Decimal(18, 4)
+  reference String?
+  note      String?
+  createdAt DateTime     @default(now())
+
+  @@index([batchId])
+  @@index([type])
+}
+
+// ============================================================
+// PURCHASES
+// ============================================================
+enum PurchaseStatus {
+  DRAFT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id         String         @id @default(cuid())
+  reference  String         @unique
+  supplierId String
+  supplier   Supplier       @relation(fields: [supplierId], references: [id])
+  status     PurchaseStatus @default(DRAFT)
+  createdById String
+  createdBy   User          @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  lines      PurchaseLine[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model PurchaseLine {
+  id         String        @id @default(cuid())
+  orderId    String
+  order      PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product       @relation(fields: [productId], references: [id])
+  quantity   Decimal       @db.Decimal(18, 4)
+  unitPrice  Decimal       @db.Decimal(18, 4)
+  batch      Batch?
+}
+
+// ============================================================
+// PRODUCTION
+// ============================================================
+enum ProductionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ProductionOrder {
+  id          String           @id @default(cuid())
+  reference   String           @unique
+  productId   String
+  quantity    Decimal          @db.Decimal(18, 4)
+  status      ProductionStatus @default(PLANNED)
+  createdById String
+  createdBy   User             @relation("ProductionCreatedBy", fields: [createdById], references: [id])
+  plannedDate DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  producedBatches Batch[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+// ============================================================
+// QUALITY CONTROL
+// ============================================================
+enum QCResult {
+  PENDING
+  PASSED
+  FAILED
+}
+
+model QualityCheck {
+  id           String   @id @default(cuid())
+  batchId      String
+  batch        Batch    @relation(fields: [batchId], references: [id])
+  inspectedById String
+  inspectedBy  User     @relation("QCInspectedBy", fields: [inspectedById], references: [id])
+  result       QCResult @default(PENDING)
+  notes        String?
+  inspectedAt  DateTime @default(now())
+
+  @@index([batchId])
+}
+
+// ============================================================
+// SALES
+// ============================================================
+enum SalesStatus {
+  DRAFT
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+model SalesOrder {
+  id          String       @id @default(cuid())
+  reference   String       @unique
+  customerId  String
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  status      SalesStatus  @default(DRAFT)
+  createdById String
+  createdBy   User         @relation("SalesCreatedBy", fields: [createdById], references: [id])
+  lines       SalesLine[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model SalesLine {
+  id        String     @id @default(cuid())
+  orderId   String
+  order     SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product    @relation(fields: [productId], references: [id])
+  batchId   String
+  batch     Batch      @relation(fields: [batchId], references: [id])
+  quantity  Decimal    @db.Decimal(18, 4)
+  unitPrice Decimal    @db.Decimal(18, 4)
+}
+
+// ============================================================
+// AUDIT LOGS
+// ============================================================
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
