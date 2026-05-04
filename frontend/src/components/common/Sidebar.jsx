@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { LogOut, Pill } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLE_LABEL, roleKey } from '../../utils/roles.js';
 
@@ -18,9 +19,11 @@ export default function Sidebar({ items = [] }) {
     <aside className="hidden md:flex md:flex-col bg-ink-800 text-slate-100 w-[260px] shrink-0 h-screen sticky top-0">
       {/* Brand */}
       <div className="px-5 h-16 flex items-center gap-3 border-b border-white/10">
-        <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center font-bold">I</div>
+        <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-white">
+          <Pill size={20} />
+        </div>
         <div className="leading-tight">
-          <div className="font-semibold">Inphamedis</div>
+          <div className="font-semibold">PharmaLab</div>
           <div className="text-[11px] text-slate-400 uppercase tracking-wider">ERP System</div>
         </div>
       </div>
@@ -39,7 +42,7 @@ export default function Sidebar({ items = [] }) {
                 : 'text-slate-300 hover:bg-ink-700 hover:text-white',
             ].join(' ')}
           >
-            <span className="text-lg leading-none">{item.icon}</span>
+            <span className="flex items-center justify-center w-5 h-5 shrink-0">{item.icon}</span>
             <span className="flex-1">{item.label}</span>
             {item.badge != null && Number(item.badge) > 0 && (
               <span className="bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1.5 inline-flex items-center justify-center">
@@ -64,7 +67,7 @@ export default function Sidebar({ items = [] }) {
             onClick={handleLogout}
             title="Logout"
             className="text-slate-300 hover:text-danger cursor-pointer p-1.5 rounded-md transition-colors"
-          >⎋</button>
+          ><LogOut size={16} /></button>
         </div>
       </div>
     </aside>

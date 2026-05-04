@@ -57,6 +57,28 @@ async function start(orderId, userId) {
 // - create stock movements
 // All inside a single serializable transaction to handle concurrency.
 async function complete(orderId, { consumedBatches, finishedBatchNumber, expiryDate }) {
+  // Pre-flight: validate total consumed per product doesn't exceed total available stock.
+  // This gives a clear error before entering the transaction.
+  const totalConsumedByProduct = {};
+  for (const c of consumedBatches) {
+    const batch = await prisma.batch.findUnique({ where: { id: c.batchId }, select: { productId: true, product: { select: { name: true } } } });
+    if (!batch) throw new ApiError(404, `Batch ${c.batchId} not found`);
+    if (!totalConsumedByProduct[batch.productId]) {
+      totalConsumedByProduct[batch.productId] = { consumed: 0, name: batch.product?.name || batch.productId };
+    }
+    totalConsumedByProduct[batch.productId].consumed += Number(c.quantity);
+  }
+  for (const [productId, { consumed, name }] of Object.entries(totalConsumedByProduct)) {
+    const agg = await prisma.batch.aggregate({
+      where: { productId, status: 'APPROVED', remainingQty: { gt: 0 } },
+      _sum: { remainingQty: true },
+    });
+    const available = Number(agg._sum.remainingQty || 0);
+    if (consumed > available) {
+      throw new ApiError(400, `Insufficient stock for "${name}": need ${consumed}, available ${available}`);
+    }
+  }
+
   return prisma.$transaction(
     async (tx) => {
       const order = await tx.productionOrder.findUnique({ where: { id: orderId } });
@@ -123,4 +145,36 @@ async function complete(orderId, { consumedBatches, finishedBatchNumber, expiryD
   );
 }
 
-module.exports = { list, create, start, complete };
+async function getById(id) {
+  const order = await prisma.productionOrder.findUnique({
+    where: { id },
+    include: {
+      producedBatches: { include: { product: true } },
+      createdBy: { select: { fullName: true } },
+      parentLinks: {
+        include: { parentBatch: { include: { product: true } } },
+      },
+    },
+  });
+  if (!order) throw new ApiError(404, 'Production order not found');
+  const product = await prisma.product.findUnique({ where: { id: order.productId }, select: { id: true, sku: true, name: true, unit: true } });
+  // Build consumption list from batch genealogy via producedBatches
+  const consumption = [];
+  for (const pb of order.producedBatches) {
+    const genealogy = await prisma.batchGenealogy.findMany({
+      where: { childBatchId: pb.id },
+      include: { parentBatch: { include: { product: true } } },
+    });
+    for (const g of genealogy) {
+      consumption.push({
+        batchNumber: g.parentBatch.batchNumber,
+        productName: g.parentBatch.product?.name,
+        product: g.parentBatch.product,
+        quantity: g.consumedQty,
+      });
+    }
+  }
+  return { ...order, product, consumption };
+}
+
+module.exports = { list, create, start, complete, getById };

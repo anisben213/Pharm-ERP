@@ -25,4 +25,13 @@ router.post('/', rbac('ADMIN', 'PURCHASER'), validate(schema), asyncHandler(asyn
   res.status(201).json(await prisma.supplier.create({ data: req.body }));
 }));
 
+router.patch('/:id/rate', rbac('ADMIN', 'PURCHASER'), asyncHandler(async (req, res) => {
+  const { rating } = req.body;
+  const r = Number(rating);
+  if (!r || r < 1 || r > 5) return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+  const supplier = await prisma.supplier.findUnique({ where: { id: req.params.id } });
+  if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
+  res.json(await prisma.supplier.update({ where: { id: req.params.id }, data: { rating: r } }));
+}));
+
 module.exports = router;

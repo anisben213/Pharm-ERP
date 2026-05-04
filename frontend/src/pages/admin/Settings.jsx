@@ -7,7 +7,7 @@ import { useToast } from '../../hooks/useToast.js';
 export default function Settings() {
   const toast = useToast();
   const [form, setForm] = useState({
-    companyName: 'Inphamedis',
+    companyName: 'PharmaLab',
     currency: 'EUR',
     timezone: 'Europe/Casablanca',
     language: 'en',
@@ -32,7 +32,10 @@ export default function Settings() {
           <h3 className="font-semibold mb-4">Company</h3>
           <InputField label="Company Name" value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
           <SelectField label="Currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
-            options={[{value:'EUR',label:'EUR (€)'},{value:'USD',label:'USD ($)'},{value:'MAD',label:'MAD (DH)'}]} />
+            options={[
+              {value:'DZD',label:'DZD — Algerian Dinar (دج)'},
+              {value:'EUR',label:'EUR — Euro (€)'}
+            ]} />
           <SelectField label="Timezone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}
             options={['Europe/Casablanca','Europe/Paris','UTC']} />
         </div>

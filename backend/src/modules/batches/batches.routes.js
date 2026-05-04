@@ -22,5 +22,10 @@ router.post(
   rbac('ADMIN', 'QUALITY_CONTROLLER'),
   ctrl.recall
 );
+router.patch(
+  '/:id/corrective-action',
+  rbac('ADMIN', 'QUALITY_CONTROLLER'),
+  ctrl.setCorrectiveAction
+);
 
 module.exports = router;

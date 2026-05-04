@@ -1,13 +1,14 @@
 import RoleLayout from './RoleLayout.jsx';
+import { LayoutDashboard, BookOpen, ShoppingBag, Truck, Receipt, RotateCcw, Users } from 'lucide-react';
 
 const menu = [
-  { to: '/sales_manager',           end: true, icon: '📊', label: 'Dashboard' },
-  { to: '/sales_manager/catalog',              icon: '📖', label: 'Product Catalog' },
-  { to: '/sales_manager/orders',               icon: '🛒', label: 'Sales Orders' },
-  { to: '/sales_manager/deliveries',           icon: '🚚', label: 'Delivery Notes' },
-  { to: '/sales_manager/invoices',             icon: '💰', label: 'Invoices' },
-  { to: '/sales_manager/returns',              icon: '↩️', label: 'Returns' },
-  { to: '/sales_manager/clients',              icon: '👥', label: 'Clients' },
+  { to: '/sales_manager',           end: true, icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { to: '/sales_manager/catalog',              icon: <BookOpen size={18} />,        label: 'Product Catalog' },
+  { to: '/sales_manager/orders',               icon: <ShoppingBag size={18} />,     label: 'Sales Orders' },
+  { to: '/sales_manager/deliveries',           icon: <Truck size={18} />,           label: 'Delivery Notes' },
+  { to: '/sales_manager/invoices',             icon: <Receipt size={18} />,         label: 'Invoices' },
+  { to: '/sales_manager/returns',              icon: <RotateCcw size={18} />,       label: 'Returns' },
+  { to: '/sales_manager/clients',              icon: <Users size={18} />,           label: 'Clients' },
 ];
 
 const titles = {

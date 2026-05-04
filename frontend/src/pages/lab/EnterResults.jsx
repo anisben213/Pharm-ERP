@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FlaskConical } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Skeleton from '../../components/common/Skeleton.jsx';
@@ -35,12 +36,13 @@ export default function EnterResults() {
     if (!selected) return;
     setSaving(true);
     try {
+      const anyFail = Object.values(results).some((r) => !r.pass);
+      const result = anyFail ? 'FAILED' : 'PASSED';
       await qualityService.inspect({
         batchId: selected.id,
-        results: Object.entries(results).map(([k, v]) => ({ parameter: k, ...v })),
+        result,
         notes,
       });
-      const anyFail = Object.values(results).some((r) => !r.pass);
       if (anyFail) toast.info('Quality Manager has been alerted (failed parameters).');
       toast.success('Results submitted');
       setSelected(null);
@@ -85,7 +87,7 @@ export default function EnterResults() {
 
         <section className="lg:col-span-2">
           {!selected
-            ? <div className="card"><EmptyState icon="🔬" title="Select a batch" message="Pick a batch on the left to enter analysis results." /></div>
+            ? <div className="card"><EmptyState icon={<FlaskConical size={40} />} title="Select a batch" message="Pick a batch on the left to enter analysis results." /></div>
             : (
               <form onSubmit={save} className="card">
                 <div className="flex items-center justify-between mb-5">

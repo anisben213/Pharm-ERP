@@ -14,14 +14,14 @@ export default function QualityHistory() {
         data={data || []}
         searchKeys={['batchNumber', 'productName']}
         filters={[{ key: 'status', label: 'All statuses', options: [
-          { value: 'pending', label: 'Pending' },
-          { value: 'validated', label: 'Validated' },
-          { value: 'rejected', label: 'Rejected' },
-          { value: 'recalled', label: 'Recalled' },
+          { value: 'IN_QUARANTINE', label: 'In Quarantine' },
+          { value: 'APPROVED',     label: 'Approved' },
+          { value: 'REJECTED',     label: 'Rejected' },
+          { value: 'RECALLED',     label: 'Recalled' },
         ]}]}
         columns={[
           { key: 'batchNumber', header: 'Batch #', render: (r) => <span className="font-mono text-primary">{r.batchNumber}</span> },
-          { key: 'productName', header: 'Product', render: (r) => r.productName || r.product?.name },
+          { key: 'productName', header: 'Product', render: (r) => r.product?.name || r.productName || '—' },
           { key: 'updatedAt',   header: 'Updated', sortable: true, render: (r) => r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—' },
           { key: 'status',      header: 'Status',  render: (r) => <Badge status={r.status} /> },
         ]}

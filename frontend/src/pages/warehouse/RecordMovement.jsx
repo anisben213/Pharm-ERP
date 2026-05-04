@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowLeftRight } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import InputField from '../../components/forms/InputField.jsx';
 import SelectField from '../../components/forms/SelectField.jsx';
@@ -6,20 +7,20 @@ import Table from '../../components/common/Table.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import useFetch from '../../hooks/useFetch.js';
 import { useToast } from '../../hooks/useToast.js';
-import { stockService, productService } from '../../services/index.js';
+import { stockService, batchService } from '../../services/index.js';
 
 export default function RecordMovement() {
   const toast = useToast();
-  const { data: products } = useFetch(() => productService.list().then((r) => r.products), []);
+  const { data: batches } = useFetch(() => batchService.list().then((r) => r.batches), []);
   const { data: recent, loading: lr, refetch } = useFetch(() => stockService.movements({ limit: 10 }).then((r) => r.movements), []);
 
-  const [form, setForm] = useState({ productId: '', batchNumber: '', type: 'IN', quantity: '', reason: '', location: '' });
+  const [form, setForm] = useState({ batchId: '', type: 'IN', quantity: '', reason: '' });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
   const validate = () => {
     const e = {};
-    if (!form.productId) e.productId = { message: 'Product is required', show: true };
+    if (!form.batchId) e.batchId = { message: 'Batch is required', show: true };
     if (!form.quantity || Number(form.quantity) <= 0) e.quantity = { message: 'Quantity must be > 0', show: true };
     return e;
   };
@@ -32,7 +33,7 @@ export default function RecordMovement() {
     try {
       await stockService.createMovement({ ...form, quantity: Number(form.quantity) });
       toast.success('Movement recorded successfully');
-      setForm({ productId: '', batchNumber: '', type: 'IN', quantity: '', reason: '', location: '' });
+      setForm({ batchId: '', type: 'IN', quantity: '', reason: '' });
       setErrors({});
       refetch();
     } catch (err) {
@@ -46,14 +47,10 @@ export default function RecordMovement() {
 
       <form onSubmit={submit} className="card mb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-          <SelectField label="Product" name="productId" required value={form.productId}
-            onChange={(e) => setForm({ ...form, productId: e.target.value })}
-            options={(products || []).map((p) => ({ value: p.id, label: `${p.sku} — ${p.name}` }))}
-            error={errors.productId}
-          />
-          <InputField label="Batch Number" name="batchNumber" value={form.batchNumber}
-            onChange={(e) => setForm({ ...form, batchNumber: e.target.value })}
-            placeholder="Auto or manual"
+          <SelectField label="Batch" name="batchId" required value={form.batchId}
+            onChange={(e) => setForm({ ...form, batchId: e.target.value })}
+            options={(batches || []).map((b) => ({ value: b.id, label: `${b.batchNumber} — ${b.product?.name || ''} (qty: ${Number(b.remainingQty)})` }))}
+            error={errors.batchId}
           />
           <div className="mb-4">
             <label className="block text-sm font-medium text-ink-800 mb-1.5">Type <span className="text-danger">*</span></label>
@@ -77,10 +74,6 @@ export default function RecordMovement() {
           <InputField label="Quantity" name="quantity" type="number" min="0" step="any" required
             value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })}
             error={errors.quantity}
-          />
-          <SelectField label="Location" name="location" value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            options={['Warehouse A', 'Warehouse B', 'Cold Storage', 'Quarantine']}
           />
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-ink-800 mb-1.5">Reason</label>
@@ -112,7 +105,7 @@ export default function RecordMovement() {
           { key: 'type',        header: 'Type',    render: (r) => <Badge status={r.type === 'IN' ? 'active' : 'pending'} label={r.type === 'IN' ? 'Entry' : 'Exit'} /> },
           { key: 'quantity',    header: 'Qty' },
         ]}
-        empty={{ icon: '🔄', title: 'No movements yet', message: 'Use the form above to record your first movement.' }}
+        empty={{ icon: <ArrowLeftRight size={40} />, title: 'No movements yet', message: 'Use the form above to record your first movement.' }}
       />
     </div>
   );

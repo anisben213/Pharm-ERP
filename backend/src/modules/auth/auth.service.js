@@ -25,13 +25,19 @@ async function login({ email, password }) {
   const accessToken = signAccessToken(payload);
   const refreshToken = signRefreshToken(payload);
 
-  await prisma.refreshToken.create({
-    data: {
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+  await prisma.$transaction([
+    prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }),
+  ]);
 
   return {
     accessToken,

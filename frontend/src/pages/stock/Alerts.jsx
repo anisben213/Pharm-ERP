@@ -1,3 +1,4 @@
+import { AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Skeleton from '../../components/common/Skeleton.jsx';
@@ -18,13 +19,13 @@ export default function Alerts() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="card border-l-4 border-danger">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-ink-800">⚠️ Low Stock</h3>
+            <h3 className="font-semibold text-ink-800 flex items-center gap-2"><AlertTriangle size={16} className="text-danger" /> Low Stock</h3>
             <Badge status="rejected" label={`${low.length}`} />
           </div>
           {ls
             ? <Skeleton lines={3} />
             : low.length === 0
-              ? <EmptyState icon="✅" title="All clear" message="No products below minimum stock level." />
+              ? <EmptyState icon={<CheckCircle size={40} />} title="All clear" message="No products below minimum stock level." />
               : (
                 <ul className="divide-y divide-slate-100">
                   {low.map((s, i) => (
@@ -42,13 +43,13 @@ export default function Alerts() {
 
         <section className="card border-l-4 border-warning">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-ink-800">⏳ Expiring Batches</h3>
+            <h3 className="font-semibold text-ink-800 flex items-center gap-2"><Clock size={16} className="text-warning-600" /> Expiring Batches</h3>
             <Badge status="pending" label={`${(expiring || []).length}`} />
           </div>
           {le
             ? <Skeleton lines={3} />
             : (expiring || []).length === 0
-              ? <EmptyState icon="✅" title="No expiring batches" message="No batches expiring in the next 90 days." />
+              ? <EmptyState icon={<CheckCircle size={40} />} title="No expiring batches" message="No batches expiring in the next 90 days." />
               : (
                 <ul className="divide-y divide-slate-100">
                   {(expiring || []).map((b) => (
@@ -58,7 +59,7 @@ export default function Alerts() {
                         <div className="text-xs text-slate-500">{b.productName || b.product?.name}</div>
                       </div>
                       <span className="text-warning-600 text-sm font-medium">
-                        {b.expiresAt ? new Date(b.expiresAt).toLocaleDateString() : '—'}
+                        {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}
                       </span>
                     </li>
                   ))}

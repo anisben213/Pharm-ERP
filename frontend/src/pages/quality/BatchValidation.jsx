@@ -9,18 +9,18 @@ import { useToast } from '../../hooks/useToast.js';
 import { batchService } from '../../services/index.js';
 
 const TABS = [
-  { key: 'pending',   label: 'Pending' },
-  { key: 'validated', label: 'Validated' },
-  { key: 'rejected',  label: 'Rejected' },
+  { key: 'IN_QUARANTINE', label: 'Pending' },
+  { key: 'APPROVED',     label: 'Approved' },
+  { key: 'REJECTED',     label: 'Rejected' },
 ];
 
 export default function BatchValidation() {
   const toast = useToast();
-  const [tab, setTab] = useState('pending');
+  const [tab, setTab] = useState('IN_QUARANTINE');
   const { data, loading, refetch } = useFetch(() => batchService.list().then((r) => r.batches), []);
 
   const filtered = useMemo(
-    () => (data || []).filter((b) => String(b.status).toLowerCase() === tab),
+    () => (data || []).filter((b) => b.status === tab),
     [data, tab]
   );
 
@@ -31,7 +31,7 @@ export default function BatchValidation() {
   const validate = async (batch) => {
     setActing(true);
     try {
-      await batchService.updateStatus(batch.id, { status: 'VALIDATED' });
+      await batchService.updateStatus(batch.id, { status: 'APPROVED', version: batch.version });
       toast.success(`Batch ${batch.batchNumber} validated`);
       refetch();
     } catch (e) {
@@ -43,7 +43,7 @@ export default function BatchValidation() {
     if (!reason.trim()) { toast.warning('Please enter a rejection reason'); return; }
     setActing(true);
     try {
-      await batchService.updateStatus(rejecting.id, { status: 'REJECTED', reason });
+      await batchService.updateStatus(rejecting.id, { status: 'REJECTED', version: rejecting.version });
       toast.success(`Batch ${rejecting.batchNumber} rejected`);
       setRejecting(null); setReason('');
       refetch();
@@ -91,7 +91,7 @@ export default function BatchValidation() {
                     <p className="text-sm text-slate-600 mt-3">{b.analysisSummary}</p>
                   )}
 
-                  {tab === 'pending' && (
+                  {tab === 'IN_QUARANTINE' && (
                     <div className="flex gap-2 mt-4">
                       <button className="btn-success" onClick={() => validate(b)} disabled={acting}>✓ Validate</button>
                       <button className="btn-danger" onClick={() => setRejecting(b)} disabled={acting}>✕ Reject</button>

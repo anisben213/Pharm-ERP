@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Package, Plus, Download } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import Table, { IconButton } from '../../components/common/Table.jsx';
 import Badge from '../../components/common/Badge.jsx';
@@ -9,12 +10,11 @@ import useFetch from '../../hooks/useFetch.js';
 import { useToast } from '../../hooks/useToast.js';
 import { purchaseService, supplierService, productService } from '../../services/index.js';
 
-const STEPS = ['Sent', 'In Progress', 'Received'];
+const STEPS = ['Draft', 'Confirmed', 'Received'];
 
 function statusStep(s) {
-  const v = String(s || '').toLowerCase();
-  if (v === 'received') return 2;
-  if (v === 'in_progress') return 1;
+  if (s === 'RECEIVED') return 2;
+  if (s === 'CONFIRMED') return 1;
   return 0;
 }
 
@@ -70,7 +70,7 @@ export default function PurchaseOrders() {
     <div>
       <PageHeader
         title="Purchase Orders"
-        actions={<button className="btn-primary" onClick={() => setOpen(true)}>➕ Generate Order</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Generate Order</button>}
       />
 
       <Table
@@ -78,13 +78,14 @@ export default function PurchaseOrders() {
         data={data || []}
         searchKeys={['orderNumber', 'supplierName']}
         filters={[{ key: 'status', label: 'All statuses', options: [
-          { value: 'sent', label: 'Sent' },
-          { value: 'in_progress', label: 'In Progress' },
-          { value: 'received', label: 'Received' },
+          { value: 'DRAFT',     label: 'Draft' },
+          { value: 'CONFIRMED', label: 'Confirmed' },
+          { value: 'RECEIVED',  label: 'Received' },
+          { value: 'CANCELLED', label: 'Cancelled' },
         ]}]}
         onRowClick={(r) => setExpanded((e) => (e === r.id ? null : r.id))}
         columns={[
-          { key: 'orderNumber',  header: 'Order #',  render: (r) => <span className="font-mono">{r.orderNumber || r.id}</span> },
+          { key: 'reference',     header: 'Order #',  render: (r) => <span className="font-mono">{r.reference || r.id}</span> },
           { key: 'supplierName', header: 'Supplier', render: (r) => r.supplier?.name || r.supplierName || '—' },
           { key: 'createdAt',    header: 'Date',     sortable: true, render: (r) => new Date(r.createdAt || r.date).toLocaleDateString() },
           { key: 'status',       header: 'Status',   render: (r) => (
@@ -105,14 +106,14 @@ export default function PurchaseOrders() {
               )}
             </div>
           )},
-          { key: 'totalAmount',  header: 'Total',    sortable: true, render: (r) => r.totalAmount != null ? Number(r.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—' },
+          { key: 'total',        header: 'Total',    sortable: true, render: (r) => { const t = (r.lines || []).reduce((s, l) => s + Number(l.quantity || 0) * Number(l.unitPrice || 0), 0); return t > 0 ? t.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'; } },
         ]}
         actions={(r) => (
-          String(r.status).toLowerCase() !== 'received'
-            ? <IconButton icon="📥" title="Mark Received" color="success" onClick={() => receive(r.id)} />
+          r.status !== 'RECEIVED'
+            ? <IconButton icon={<Download size={15} />} title="Mark Received" color="success" onClick={() => receive(r.id)} />
             : <IconButton icon="✓" title="Received" color="success" />
         )}
-        empty={{ icon: '📦', title: 'No orders', message: 'Generate your first purchase order.', action: <button className="btn-primary" onClick={() => setOpen(true)}>Generate Order</button> }}
+        empty={{ icon: <Package size={40} />, title: 'No orders', message: 'Generate your first purchase order.', action: <button className="btn-primary" onClick={() => setOpen(true)}>Generate Order</button> }}
       />
 
       <FormModal open={open} onClose={() => setOpen(false)} title="Generate Purchase Order" onSubmit={submit} loading={saving} submitLabel="Generate" size="lg">
@@ -148,7 +149,7 @@ export default function PurchaseOrders() {
             </div>
           ))}
         </div>
-        <button type="button" className="btn-outline mb-3" onClick={addLine}>➕ Add line</button>
+        <button type="button" className="btn-outline mb-3" onClick={addLine}><Plus size={16} /> Add line</button>
         {errors.lines && <p className="text-xs text-danger">{errors.lines.message}</p>}
 
         <div className="border-t border-slate-200 pt-3 flex justify-between text-sm">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import Table from '../../components/common/Table.jsx';
 import FormModal from '../../components/forms/FormModal.jsx';
@@ -31,7 +32,7 @@ export default function Clients() {
     <div>
       <PageHeader
         title="Clients"
-        actions={<button className="btn-primary" onClick={() => setOpen(true)}>➕ Add Client</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Add Client</button>}
       />
 
       <Table

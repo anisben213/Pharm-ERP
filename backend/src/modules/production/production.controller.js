@@ -3,6 +3,7 @@ const service = require('./production.service');
 const { recordAudit } = require('../../utils/auditLogger');
 
 exports.list = asyncHandler(async (req, res) => res.json(await service.list()));
+exports.getById = asyncHandler(async (req, res) => res.json(await service.getById(req.params.id)));
 
 exports.create = asyncHandler(async (req, res) => {
   const order = await service.create(req.body, req.user.id);

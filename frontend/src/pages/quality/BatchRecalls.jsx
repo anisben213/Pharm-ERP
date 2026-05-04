@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AlertOctagon } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import Table from '../../components/common/Table.jsx';
 import Badge from '../../components/common/Badge.jsx';
@@ -56,7 +57,7 @@ export default function BatchRecalls() {
       <PageHeader
         title="Batch Recalls"
         subtitle="Trigger and track product recalls."
-        actions={<button className="btn-danger" onClick={openPicker}>🚨 Trigger Recall</button>}
+        actions={<button className="btn-danger" onClick={openPicker}><AlertOctagon size={16} /> Trigger Recall</button>}
       />
 
       <Table

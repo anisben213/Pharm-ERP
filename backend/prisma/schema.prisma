@@ -29,6 +29,7 @@ model User {
   fullName     String
   role         Role     @default(SALES_AGENT)
   isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -68,6 +69,7 @@ model Product {
   type        ProductType
   unit        String      @default("unit")
   description String?
+  minLevel    Decimal     @default(0) @db.Decimal(18, 4)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -109,6 +111,7 @@ model Supplier {
   email     String?
   phone     String?
   address   String?
+  rating    Float           @default(0)
   createdAt DateTime        @default(now())
   purchases PurchaseOrder[]
 }
@@ -152,6 +155,8 @@ model Batch {
   version         Int         @default(0)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+
+  correctiveAction String?
 
   // Traceability links
   purchaseLineId  String?     @unique
@@ -302,6 +307,7 @@ enum SalesStatus {
   CONFIRMED
   DELIVERED
   CANCELLED
+  RETURNED
 }
 
 model SalesOrder {

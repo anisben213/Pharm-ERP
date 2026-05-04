@@ -16,17 +16,18 @@ export default function BatchNumbers() {
         data={data || []}
         searchKeys={['batchNumber', 'productName']}
         filters={[{ key: 'status', label: 'All statuses', options: [
-          { value: 'pending', label: 'Pending' },
-          { value: 'validated', label: 'Validated' },
-          { value: 'rejected', label: 'Rejected' },
-          { value: 'recalled', label: 'Recalled' },
+          { value: 'IN_QUARANTINE', label: 'In Quarantine' },
+          { value: 'APPROVED',     label: 'Approved' },
+          { value: 'REJECTED',     label: 'Rejected' },
+          { value: 'RECALLED',     label: 'Recalled' },
+          { value: 'RELEASED',     label: 'Released' },
         ]}]}
         columns={[
           { key: 'batchNumber', header: 'Batch #', sortable: true,
             render: (r) => <Link to={`/stock_manager/batches/${r.batchNumber}`} className="font-mono text-primary hover:underline">{r.batchNumber}</Link> },
           { key: 'productName', header: 'Product', render: (r) => r.productName || r.product?.name || '—' },
           { key: 'manufacturedAt', header: 'Manufactured', sortable: true, render: (r) => r.manufacturedAt ? new Date(r.manufacturedAt).toLocaleDateString() : '—' },
-          { key: 'expiresAt', header: 'Expires', sortable: true, render: (r) => r.expiresAt ? new Date(r.expiresAt).toLocaleDateString() : '—' },
+          { key: 'expiryDate', header: 'Expires', sortable: true, render: (r) => r.expiryDate ? new Date(r.expiryDate).toLocaleDateString() : '—' },
           { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} /> },
         ]}
         empty={{ icon: '🏷️', title: 'No batches', message: 'Batches will appear here once production orders are created.' }}

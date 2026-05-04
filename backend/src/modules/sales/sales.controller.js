@@ -15,3 +15,9 @@ exports.deliver = asyncHandler(async (req, res) => {
   await recordAudit({ userId: req.user.id, action: 'SALES_DELIVERED', entity: 'SalesOrder', entityId: order.id, req });
   res.json(order);
 });
+
+exports.returnOrder = asyncHandler(async (req, res) => {
+  const order = await service.returnOrder(req.params.id);
+  await recordAudit({ userId: req.user.id, action: 'SALES_RETURNED', entity: 'SalesOrder', entityId: order.id, req });
+  res.json(order);
+});

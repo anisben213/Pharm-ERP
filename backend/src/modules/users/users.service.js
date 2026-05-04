@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const ApiError = require('../../utils/ApiError');
 
 const publicSelect = {
-  id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true,
+  id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true, lastLoginAt: true,
 };
 
 async function list() {

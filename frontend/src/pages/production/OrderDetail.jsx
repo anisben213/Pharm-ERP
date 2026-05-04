@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { FlaskConical } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import Skeleton from '../../components/common/Skeleton.jsx';
@@ -19,7 +20,7 @@ export default function OrderDetail() {
   return (
     <div>
       <PageHeader
-        title={`Order ${order.orderNumber || order.id}`}
+        title={`Order ${order.reference || order.id}`}
         subtitle={order.product?.name}
         actions={<Badge status={order.status} />}
       />
@@ -28,20 +29,20 @@ export default function OrderDetail() {
         <div className="card lg:col-span-1">
           <h3 className="font-semibold mb-3">Order Info</h3>
           <dl className="text-sm space-y-2">
-            <Row label="Batch Number" value={order.batchNumber
-              ? <Link to={`/stock_manager/batches/${order.batchNumber}`} className="font-mono text-primary hover:underline">{order.batchNumber}</Link>
+            <Row label="Batch Number" value={order.producedBatches?.[0]?.batchNumber
+              ? <Link to={`/stock_manager/batches/${order.producedBatches[0].batchNumber}`} className="font-mono text-primary hover:underline">{order.producedBatches[0].batchNumber}</Link>
               : '—'}
             />
             <Row label="Quantity" value={order.quantity} />
             <Row label="Planned" value={order.plannedDate ? new Date(order.plannedDate).toLocaleDateString() : '—'} />
-            <Row label="Operator" value={order.operator?.fullName || '—'} />
+            <Row label="Operator" value={order.createdBy?.fullName || '—'} />
           </dl>
         </div>
 
         <div className="card lg:col-span-2">
           <h3 className="font-semibold mb-3">Raw Material Consumption</h3>
           {(order.consumption || []).length === 0
-            ? <EmptyState icon="🧪" title="No consumption recorded" message="Raw materials will appear here once production starts." />
+            ? <EmptyState icon={<FlaskConical size={40} />} title="No consumption recorded" message="Raw materials will appear here once production starts." />
             : (
               <table className="w-full text-sm">
                 <thead className="text-left">

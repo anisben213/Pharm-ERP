@@ -10,7 +10,7 @@ import Topbar from '../components/common/Topbar.jsx';
  *  - menu: [{ to, label, icon, end?, badge? }]
  *  - titles: { [pathPattern]: 'Page Title' }   used to drive Topbar title.
  */
-export default function RoleLayout({ menu = [], titles = {}, defaultTitle = 'Dashboard' }) {
+export default function RoleLayout({ menu = [], titles = {}, defaultTitle = 'Dashboard', notifications = 0, notificationItems = [] }) {
   const location = useLocation();
 
   // Resolve title from titles map (supports patterns like "/stock/batches/:id").
@@ -29,7 +29,7 @@ export default function RoleLayout({ menu = [], titles = {}, defaultTitle = 'Das
     <div className="flex min-h-screen bg-bg">
       <Sidebar items={menu} />
       <main className="flex-1 min-w-0 flex flex-col">
-        <Topbar title={title} breadcrumb={breadcrumb} />
+        <Topbar title={title} breadcrumb={breadcrumb} notifications={notifications} notificationItems={notificationItems} />
         <div className="flex-1 p-6">
           <Outlet />
         </div>

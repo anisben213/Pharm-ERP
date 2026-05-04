@@ -15,6 +15,7 @@ export const batchService = {
   trace: (id) => api.get(`/batches/${id}/trace`).then((r) => r.data),
   updateStatus: (id, body) => api.patch(`/batches/${id}/status`, body).then((r) => r.data),
   recall: (id, reason) => api.post(`/batches/${id}/recall`, { reason }).then((r) => r.data),
+  setCorrectiveAction: (id, correctiveAction) => api.patch(`/batches/${id}/corrective-action`, { correctiveAction }).then((r) => r.data),
 };
 
 export const userService = {
@@ -27,6 +28,7 @@ export const userService = {
 export const productService = {
   list: () => api.get('/products').then(wrap('products')),
   create: (body) => api.post('/products', body).then((r) => r.data),
+  setMinLevel: (id, minLevel) => api.patch(`/products/${id}/min-level`, { minLevel }).then((r) => r.data),
 };
 
 export const purchaseService = {
@@ -51,16 +53,50 @@ export const qualityService = {
 
 export const salesService = {
   list: () => api.get('/sales').then(wrap('orders')),
+  get: (id) => api.get(`/sales/${id}`).then((r) => r.data),
   create: (body) => api.post('/sales', body).then((r) => r.data),
   deliver: (id) => api.post(`/sales/${id}/deliver`).then((r) => r.data),
+  returnOrder: (id) => api.post(`/sales/${id}/return`).then((r) => r.data),
 };
 
 export const stockService = {
-  movements: (params) => api.get('/stock/movements', { params }).then(wrap('movements')),
-  summary: () => api.get('/stock/summary').then(wrap('summary')),
+  movements: (params) =>
+    api.get('/stock/movements', { params }).then((r) => ({
+      movements: (r.data || []).map((m) => ({
+        ...m,
+        productName: m.batch?.product?.name || '—',
+        batchNumber: m.batch?.batchNumber || '—',
+        note: m.note || '—',
+        reference: m.reference || null,
+        typeGroup: m.type?.startsWith('IN') ? 'IN' : 'OUT',
+      })),
+    })),
+  summary: () =>
+    api.get('/stock/summary').then((r) => {
+      const byProduct = {};
+      for (const item of r.data || []) {
+        const p = item.product || {};
+        if (!byProduct[item.productId]) {
+          byProduct[item.productId] = {
+            productId: item.productId,
+            productName: p.name || '—',
+            sku: p.sku || '—',
+            category: p.type || '—',
+            unit: p.unit || '',
+            quantity: 0,
+            minLevel: Number(p.minLevel ?? 0),
+          };
+        }
+        byProduct[item.productId].quantity += Number(item.quantity || 0);
+      }
+      return { summary: Object.values(byProduct) };
+    }),
   createMovement: (body) => api.post('/stock/movements', body).then((r) => r.data),
   blockBatch: (batchId, reason) => api.post(`/stock/block/${batchId}`, { reason }).then((r) => r.data),
-  expiring: (days = 90) => api.get('/stock/expiring', { params: { days } }).then(wrap('batches')),
+  expiring: (days = 90) =>
+    api.get('/stock/expiring', { params: { days } }).then((r) => ({
+      batches: (r.data || []).map((b) => ({ ...b, productName: b.product?.name || '—' })),
+    })),
 };
 
 export const logsService = {
@@ -70,6 +106,7 @@ export const logsService = {
 export const supplierService = {
   list: () => api.get('/suppliers').then(wrap('suppliers')),
   create: (body) => api.post('/suppliers', body).then((r) => r.data),
+  rate: (id, rating) => api.patch(`/suppliers/${id}/rate`, { rating }).then((r) => r.data),
 };
 
 export const customerService = {

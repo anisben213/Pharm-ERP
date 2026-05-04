@@ -1,6 +1,7 @@
 import KPICard from '../../components/common/KPICard.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import useFetch from '../../hooks/useFetch.js';
+import { FolderOpen, Clock, Award } from 'lucide-react';
 import { batchService } from '../../services/index.js';
 
 export default function LabDashboard() {
@@ -19,11 +20,11 @@ export default function LabDashboard() {
     <div>
       <PageHeader title="Lab Dashboard" subtitle="Your daily QC workload at a glance." />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <KPICard icon="📁" label="Assigned Files"          value={assigned}             color="primary" loading={loading} />
+        <KPICard icon={<FolderOpen size={24} />} label="Assigned Files"          value={assigned}             color="primary" loading={loading} />
         <div className={pending > 0 ? 'ring-2 ring-warning rounded-xl' : ''}>
-          <KPICard icon="⏳" label="Results Pending Entry" value={pending}              color="warning" loading={loading} />
+          <KPICard icon={<Clock size={24} />}     label="Results Pending Entry" value={pending}              color="warning" loading={loading} />
         </div>
-        <KPICard icon="📄" label="Certificates This Month" value={validatedThisMonth}   color="success" loading={loading} />
+        <KPICard icon={<Award size={24} />}      label="Certificates This Month" value={validatedThisMonth}   color="success" loading={loading} />
       </div>
     </div>
   );

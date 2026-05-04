@@ -25,6 +25,8 @@ import StockMovements from '../pages/stock/StockMovements.jsx';
 import StockBatches from '../pages/stock/BatchTracking.jsx';
 import StockAlerts from '../pages/stock/Alerts.jsx';
 import StockReports from '../pages/stock/Reports.jsx';
+import StockDeliveryNotes from '../pages/stock/DeliveryNotes.jsx';
+import StockLocations from '../pages/stock/Locations.jsx';
 
 // Warehouse
 import WarehouseDashboard from '../pages/warehouse/Dashboard.jsx';
@@ -37,7 +39,6 @@ import ProductionDashboard from '../pages/production/Dashboard.jsx';
 import ManufacturingOrders from '../pages/production/ManufacturingOrders.jsx';
 import ProductionOrderDetail from '../pages/production/OrderDetail.jsx';
 import ProductionSchedule from '../pages/production/Schedule.jsx';
-import ProductionResources from '../pages/production/Resources.jsx';
 import ProductionBatchNumbers from '../pages/production/BatchNumbers.jsx';
 import ProductionReports from '../pages/production/Reports.jsx';
 
@@ -100,13 +101,15 @@ export default function AppRoutes() {
       {/* Stock Manager */}
       <Route path="/stock_manager" element={protect(['stock_manager', 'admin'], <StockManagerLayout />)}>
         <Route index element={<StockDashboard />} />
-        <Route path="products"      element={<StockProducts />} />
-        <Route path="levels"        element={<StockLevels />} />
-        <Route path="movements"     element={<StockMovements />} />
-        <Route path="batches"       element={<StockBatches />} />
-        <Route path="batches/:id"   element={<StockBatches />} />
-        <Route path="alerts"        element={<StockAlerts />} />
-        <Route path="reports"       element={<StockReports />} />
+        <Route path="products"        element={<StockProducts />} />
+        <Route path="levels"          element={<StockLevels />} />
+        <Route path="locations"       element={<StockLocations />} />
+        <Route path="movements"       element={<StockMovements />} />
+        <Route path="delivery-notes"  element={<StockDeliveryNotes />} />
+        <Route path="batches"         element={<StockBatches />} />
+        <Route path="batches/:id"     element={<StockBatches />} />
+        <Route path="alerts"          element={<StockAlerts />} />
+        <Route path="reports"         element={<StockReports />} />
       </Route>
 
       {/* Warehouse Keeper */}
@@ -123,7 +126,6 @@ export default function AppRoutes() {
         <Route path="orders"        element={<ManufacturingOrders />} />
         <Route path="orders/:id"    element={<ProductionOrderDetail />} />
         <Route path="schedule"      element={<ProductionSchedule />} />
-        <Route path="resources"     element={<ProductionResources />} />
         <Route path="batches"       element={<ProductionBatchNumbers />} />
         <Route path="reports"       element={<ProductionReports />} />
       </Route>
@@ -175,6 +177,7 @@ export default function AppRoutes() {
         <Route path="roles"     element={<AdminRoles />} />
         <Route path="logs"      element={<AdminLogs />} />
         <Route path="settings"  element={<AdminSettings />} />
+        <Route path="stock"     element={<StockLevels />} />
       </Route>
 
       {/* Root + 404 */}

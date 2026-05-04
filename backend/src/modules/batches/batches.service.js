@@ -13,14 +13,15 @@ async function list({ status, productId }) {
 }
 
 async function getById(id) {
-  const batch = await prisma.batch.findUnique({
-    where: { id },
+  const batch = await prisma.batch.findFirst({
+    where: { OR: [{ id }, { batchNumber: id }] },
     include: {
       product: true,
-      qualityChecks: { include: { inspectedBy: { select: { fullName: true } } } },
-      stockMovements: true,
+      qualityChecks: { include: { inspectedBy: { select: { fullName: true } } }, orderBy: { inspectedAt: 'asc' } },
+      stockMovements: { orderBy: { createdAt: 'asc' } },
       parentLinks: { include: { parentBatch: { include: { product: true } } } },
-      childLinks: { include: { childBatch: { include: { product: true } } } },
+      childLinks:  { include: { childBatch:  { include: { product: true } } } },
+      salesLines:  { include: { order: { include: { customer: true } } } },
     },
   });
   if (!batch) throw new ApiError(404, 'Batch not found');
@@ -29,8 +30,11 @@ async function getById(id) {
 
 // End-to-end trace: walk ancestors (raw materials) and descendants (finished products & sales)
 async function trace(id) {
-  const root = await prisma.batch.findUnique({ where: { id }, include: { product: true } });
+  // Accept either UUID or batchNumber
+  const root = await prisma.batch.findFirst({ where: { OR: [{ id }, { batchNumber: id }] }, include: { product: true } });
   if (!root) throw new ApiError(404, 'Batch not found');
+  // Use the real DB id for all subsequent queries
+  id = root.id;
 
   async function walkUp(batchId, visited = new Set()) {
     if (visited.has(batchId)) return [];
@@ -193,4 +197,10 @@ async function getAffected(id) {
   return { batchNumber: batch.batchNumber, clients, orders };
 }
 
-module.exports = { list, getById, trace, updateStatus, recall, getAffected };
+async function setCorrectiveAction(id, correctiveAction) {
+  const batch = await prisma.batch.findUnique({ where: { id } });
+  if (!batch) throw new ApiError(404, 'Batch not found');
+  return prisma.batch.update({ where: { id }, data: { correctiveAction } });
+}
+
+module.exports = { list, getById, trace, updateStatus, recall, getAffected, setCorrectiveAction };

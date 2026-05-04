@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Building2, Plus } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Skeleton from '../../components/common/Skeleton.jsx';
@@ -27,9 +28,23 @@ export default function Suppliers() {
   const { data, loading, refetch } = useFetch(() => supplierService.list().then((r) => r.suppliers).catch(() => []), []);
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [saving, setSaving] = useState(false);
   const [rating, setRating] = useState(null); // {supplier, value}
+  const [savingRating, setSavingRating] = useState(false);
+
+  const saveRating = async () => {
+    if (!rating?.value) { toast.warning('Select a rating'); return; }
+    setSavingRating(true);
+    try {
+      await supplierService.rate(rating.supplier.id, rating.value);
+      toast.success('Rating saved');
+      setRating(null);
+      refetch();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to save rating');
+    } finally { setSavingRating(false); }
+  };
 
   const filtered = (data || []).filter((s) =>
     !search || (s.name || '').toLowerCase().includes(search.toLowerCase())
@@ -41,7 +56,7 @@ export default function Suppliers() {
     try {
       await supplierService.create(form);
       toast.success('Supplier added');
-      setAdding(false); setForm({ name: '', email: '', phone: '' });
+      setAdding(false); setForm({ name: '', email: '', phone: '', address: '' });
       refetch();
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Failed to add supplier');
@@ -52,7 +67,7 @@ export default function Suppliers() {
     <div>
       <PageHeader
         title="Suppliers"
-        actions={<button className="btn-primary" onClick={() => setAdding(true)}>➕ Add Supplier</button>}
+        actions={<button className="btn-primary" onClick={() => setAdding(true)}><Plus size={16} /> Add Supplier</button>}
       />
 
       <div className="mb-5">
@@ -61,7 +76,7 @@ export default function Suppliers() {
 
       {loading ? <Skeleton lines={4} />
         : filtered.length === 0
-          ? <div className="card"><EmptyState icon="🏭" title="No suppliers" message="Add your first supplier to start ordering." /></div>
+          ? <div className="card"><EmptyState icon={<Building2 size={40} />} title="No suppliers" message="Add your first supplier to start ordering." /></div>
           : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map((s) => (
@@ -84,13 +99,15 @@ export default function Suppliers() {
         <InputField label="Name"  required value={form.name}  onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <InputField label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <InputField label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <InputField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
       </FormModal>
 
       <FormModal
         open={!!rating} onClose={() => setRating(null)}
         title={`Evaluate ${rating?.supplier?.name || ''}`}
-        onSubmit={() => { toast.success('Rating saved'); setRating(null); }}
+        onSubmit={saveRating}
         submitLabel="Save"
+        loading={savingRating}
       >
         <p className="text-sm text-slate-600 mb-3">Rate this supplier:</p>
         <Stars value={rating?.value || 0} onChange={(v) => setRating((r) => ({ ...r, value: v }))} />

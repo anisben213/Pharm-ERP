@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
 import EmptyState from './EmptyState.jsx';
 import { TableSkeleton } from './Skeleton.jsx';
 
@@ -88,7 +89,9 @@ export default function Table({
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between p-4 border-b border-slate-100">
         <div className="flex-1 max-w-md relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <Search size={15} />
+          </span>
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -135,7 +138,7 @@ export default function Table({
                   </span>
                 </th>
               ))}
-              {actions && <th className="label-xs px-4 py-3 text-right">Actions</th>}
+              {actions && <th className="label-xs px-4 py-3 text-center">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -162,7 +165,7 @@ export default function Table({
                   </td>
                 ))}
                 {actions && (
-                  <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     {actions(row)}
                   </td>
                 )}

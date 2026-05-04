@@ -1,10 +1,11 @@
 import RoleLayout from './RoleLayout.jsx';
+import { LayoutDashboard, ArrowLeftRight, Warehouse, ScrollText } from 'lucide-react';
 
 const menu = [
-  { to: '/warehouse_keeper',           end: true, icon: '📊', label: 'Dashboard' },
-  { to: '/warehouse_keeper/record',               icon: '🔄', label: 'Record Movement' },
-  { to: '/warehouse_keeper/locations',            icon: '📍', label: 'Storage Locations' },
-  { to: '/warehouse_keeper/movements',            icon: '📜', label: 'My Movements' },
+  { to: '/warehouse_keeper',           end: true, icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { to: '/warehouse_keeper/record',               icon: <ArrowLeftRight size={18} />,  label: 'Record Movement' },
+  { to: '/warehouse_keeper/locations',            icon: <Warehouse size={18} />,       label: 'Storage Locations' },
+  { to: '/warehouse_keeper/movements',            icon: <ScrollText size={18} />,      label: 'My Movements' },
 ];
 
 const titles = {

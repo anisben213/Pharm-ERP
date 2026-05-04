@@ -21,3 +21,14 @@ exports.recall = asyncHandler(async (req, res) => {
   const result = await service.recall(req.params.id, req.user.id, req.body?.reason);
   res.json(result);
 });
+
+exports.setCorrectiveAction = asyncHandler(async (req, res) => {
+  const { correctiveAction } = req.body;
+  if (typeof correctiveAction !== 'string') return res.status(400).json({ message: 'correctiveAction must be a string' });
+  const batch = await service.setCorrectiveAction(req.params.id, correctiveAction);
+  await recordAudit({
+    userId: req.user.id, action: 'BATCH_CORRECTIVE_ACTION',
+    entity: 'Batch', entityId: batch.id, metadata: { correctiveAction }, req,
+  });
+  res.json(batch);
+});

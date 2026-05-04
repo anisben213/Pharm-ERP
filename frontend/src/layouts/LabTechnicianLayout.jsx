@@ -1,10 +1,11 @@
 import RoleLayout from './RoleLayout.jsx';
+import { LayoutDashboard, FolderOpen, FlaskConical, Award } from 'lucide-react';
 
 const menu = [
-  { to: '/lab_technician',                  end: true, icon: '📊', label: 'Dashboard' },
-  { to: '/lab_technician/control-files',               icon: '📁', label: 'My Control Files' },
-  { to: '/lab_technician/results',                     icon: '🔬', label: 'Enter Results' },
-  { to: '/lab_technician/certificates',                icon: '📄', label: 'Certificates' },
+  { to: '/lab_technician',                  end: true, icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { to: '/lab_technician/control-files',               icon: <FolderOpen size={18} />,      label: 'My Control Files' },
+  { to: '/lab_technician/results',                     icon: <FlaskConical size={18} />,    label: 'Enter Results' },
+  { to: '/lab_technician/certificates',                icon: <Award size={18} />,           label: 'Certificates' },
 ];
 
 const titles = {

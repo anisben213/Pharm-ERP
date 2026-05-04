@@ -18,28 +18,46 @@ async function listMovements(filters = {}) {
   });
 }
 
+// Statuses that still hold usable / on-hand stock
+const USABLE_STATUSES = ['CREATED', 'IN_QUARANTINE', 'APPROVED', 'IN_PRODUCTION', 'RELEASED'];
+
 async function stockByProduct() {
   const rows = await prisma.batch.groupBy({
     by: ['productId', 'status'],
+    where: {
+      status: { in: USABLE_STATUSES },
+      remainingQty: { gt: 0 },
+    },
     _sum: { remainingQty: true },
   });
   const productIds = [...new Set(rows.map((r) => r.productId))];
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
-    select: { id: true, sku: true, name: true, type: true, unit: true },
+    select: { id: true, sku: true, name: true, type: true, unit: true, minLevel: true },
   });
   const pMap = Object.fromEntries(products.map((p) => [p.id, p]));
   return rows.map((r) => ({
     productId: r.productId,
     product: pMap[r.productId] || null,
     status: r.status,
-    quantity: Number(r._sum.remainingQty || 0),
+    quantity: Math.max(0, Number(r._sum.remainingQty || 0)),
   }));
 }
 
-async function createMovement({ batchId, type, quantity, reference, note }) {
-  const batch = await prisma.batch.findUnique({ where: { id: batchId } });
+async function createMovement({ batchId, batchNumber, type: rawType, quantity, reference, note, reason }) {
+  // Accept batchNumber as lookup fallback
+  const batch = batchId
+    ? await prisma.batch.findUnique({ where: { id: batchId } })
+    : batchNumber
+      ? await prisma.batch.findUnique({ where: { batchNumber } })
+      : null;
   if (!batch) throw new ApiError(404, 'Batch not found');
+
+  // Map simplified IN/OUT to MovementType
+  const typeMap = { IN: 'ADJUSTMENT', OUT: 'ADJUSTMENT' };
+  const type = typeMap[rawType] || rawType;
+  const validTypes = ['IN_PURCHASE', 'IN_PRODUCTION', 'OUT_PRODUCTION', 'OUT_SALES', 'ADJUSTMENT', 'RECALL'];
+  if (!validTypes.includes(type)) throw new ApiError(400, `Invalid movement type: ${type}`);
   const qty = Number(quantity);
   if (!qty || qty <= 0) throw new ApiError(400, 'Quantity must be positive');
 
@@ -48,14 +66,16 @@ async function createMovement({ batchId, type, quantity, reference, note }) {
   const newRemaining = Number(batch.remainingQty) + delta;
   if (newRemaining < 0) throw new ApiError(409, 'Insufficient quantity in batch');
 
+  const noteText = note || reason || null;
+
   return prisma.$transaction(async (tx) => {
     const updated = await tx.batch.updateMany({
-      where: { id: batchId, version: batch.version },
+      where: { id: batch.id, version: batch.version },
       data: { remainingQty: newRemaining, version: { increment: 1 } },
     });
     if (updated.count === 0) throw new ApiError(409, 'Batch was updated concurrently, retry');
     return tx.stockMovement.create({
-      data: { batchId, type, quantity: qty, reference, note },
+      data: { batchId: batch.id, type, quantity: qty, reference, note: noteText },
       include: { batch: { include: { product: true } } },
     });
   });

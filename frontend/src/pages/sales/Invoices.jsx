@@ -1,30 +1,37 @@
+﻿import { useNavigate } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader.jsx';
-import Table from '../../components/common/Table.jsx';
+import Table, { IconButton } from '../../components/common/Table.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import useFetch from '../../hooks/useFetch.js';
 import { salesService } from '../../services/index.js';
 
 export default function Invoices() {
+  const navigate = useNavigate();
   const { data, loading } = useFetch(() => salesService.list().then((r) => r.orders), []);
+  const invoices = (data || []).filter((o) => ['DELIVERED', 'CONFIRMED'].includes(o.status));
   return (
     <div>
-      <PageHeader title="Invoices" subtitle="Billing records for completed orders." />
+      <PageHeader title="Invoices" subtitle="Billing records for confirmed and delivered orders." />
       <Table
-        loading={loading} data={data || []}
-        searchKeys={['orderNumber', 'customerName']}
-        filters={[{ key: 'paymentStatus', label: 'All payment statuses', options: [
-          { value: 'paid', label: 'Paid' },
-          { value: 'pending', label: 'Pending' },
-          { value: 'overdue', label: 'Overdue' },
+        loading={loading} data={invoices}
+        searchKeys={['reference']}
+        filters={[{ key: 'status', label: 'All statuses', options: [
+          { value: 'CONFIRMED', label: 'Confirmed' },
+          { value: 'DELIVERED', label: 'Delivered' },
         ]}]}
         columns={[
-          { key: 'invoiceNumber', header: 'Invoice #',     render: (r) => <span className="font-mono">{r.invoiceNumber || `INV-${r.id}`}</span> },
-          { key: 'customerName',  header: 'Client',         render: (r) => r.customer?.name || r.customerName },
-          { key: 'createdAt',     header: 'Issued',         sortable: true, render: (r) => new Date(r.createdAt).toLocaleDateString() },
-          { key: 'totalAmount',   header: 'Amount',         sortable: true, render: (r) => Number(r.totalAmount ?? 0).toLocaleString(undefined,{minimumFractionDigits:2}) },
-          { key: 'paymentStatus', header: 'Payment Status', render: (r) => <Badge status={r.paymentStatus || 'pending'} /> },
+          { key: 'reference', header: 'Order #', render: (r) => <span className="font-mono">{r.reference || r.id}</span> },
+          { key: 'customer',  header: 'Client',  render: (r) => r.customer?.name || '—' },
+          { key: 'createdAt', header: 'Issued',  sortable: true, render: (r) => new Date(r.createdAt).toLocaleDateString() },
+          { key: 'total', header: 'Amount', sortable: true, render: (r) => {
+            const t = (r.lines || []).reduce((s, l) => s + Number(l.quantity || 0) * Number(l.unitPrice || 0), 0);
+            return t.toLocaleString(undefined, { minimumFractionDigits: 2 });
+          }},
+          { key: 'status', header: 'Status', render: (r) => <Badge status={r.status} label={r.status} /> },
         ]}
-        empty={{ icon: '🧾', title: 'No invoices', message: 'No invoices have been issued yet.' }}
+        actions={(r) => <IconButton icon={<Eye size={15} />} title="View order" color="primary" onClick={() => navigate(`/sales_manager/orders/${r.id}`)} />}
+        empty={{ icon: '🧾', title: 'No invoices', message: 'No invoices yet.' }}
       />
     </div>
   );

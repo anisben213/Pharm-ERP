@@ -1,4 +1,5 @@
 import { useState, forwardRef } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 const InputField = forwardRef(function InputField(
   { label, name, type = 'text', value, onChange, onBlur, placeholder, required, error, hint, icon, className = '', ...rest },
@@ -44,7 +45,7 @@ const InputField = forwardRef(function InputField(
             onClick={() => setShow((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-ink-800 cursor-pointer text-sm"
             tabIndex={-1}
-          >{show ? '🙈' : '👁'}</button>
+          >{show ? <EyeOff size={16} /> : <Eye size={16} />}</button>
         )}
       </div>
       {showError
