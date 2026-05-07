@@ -1,43 +1,41 @@
-// Maps backend Role enum -> frontend role key used for layouts/routes.
-export const BACKEND_TO_KEY = {
-  ADMIN: 'admin',
-  PURCHASER: 'purchase_manager',
-  STOCK_MANAGER: 'stock_manager',
-  WAREHOUSE_KEEPER: 'warehouse_keeper',
-  PRODUCTION_MANAGER: 'production_manager',
-  QUALITY_CONTROLLER: 'quality_manager',
-  LAB_TECHNICIAN: 'lab_technician',
-  SALES_AGENT: 'sales_manager',
-};
+// Role mapping and helpers — PharmaLab ERP simplified
+// Backend enum values are uppercase; we expose lowercase keys to the UI.
 
-export const ROLE_KEYS = [
-  'admin',
-  'stock_manager',
-  'warehouse_keeper',
-  'production_manager',
-  'quality_manager',
-  'purchase_manager',
-  'sales_manager',
-  'lab_technician',
-];
+export const ROLES = {
+  admin: 'ADMIN',
+  stock_manager: 'STOCK_MANAGER',
+  production_manager: 'PRODUCTION_MANAGER',
+  purchase_manager: 'PURCHASE_MANAGER',
+  quality_manager: 'QUALITY_MANAGER',
+  sales_manager: 'SALES_MANAGER',
+};
 
 export const ROLE_LABEL = {
   admin: 'Administrator',
   stock_manager: 'Stock Manager',
-  warehouse_keeper: 'Warehouse Keeper',
   production_manager: 'Production Manager',
-  quality_manager: 'Quality Manager',
   purchase_manager: 'Purchase Manager',
+  quality_manager: 'Quality Manager',
   sales_manager: 'Sales Manager',
-  lab_technician: 'Lab Technician',
 };
 
-export const roleKey = (user) => {
+const TO_KEY = Object.fromEntries(Object.entries(ROLES).map(([k, v]) => [v, k]));
+
+export function roleKey(user) {
   if (!user) return null;
-  return BACKEND_TO_KEY[user.role] || String(user.role || '').toLowerCase();
-};
+  if (user.role && TO_KEY[user.role]) return TO_KEY[user.role];
+  return user.role?.toLowerCase?.() || null;
+}
 
-export const roleHome = (user) => {
+export function roleHome(user) {
   const k = roleKey(user);
-  return k ? `/${k}` : '/login';
-};
+  switch (k) {
+    case 'admin': return '/admin';
+    case 'stock_manager': return '/stock_manager';
+    case 'production_manager': return '/production_manager';
+    case 'purchase_manager': return '/purchase_manager';
+    case 'quality_manager': return '/quality_manager';
+    case 'sales_manager': return '/sales_manager';
+    default: return '/login';
+  }
+}

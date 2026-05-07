@@ -1,72 +1,84 @@
-import { AlertTriangle, Clock, CheckCircle } from 'lucide-react';
-import PageHeader from '../../components/common/PageHeader.jsx';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Clock } from 'lucide-react';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import Skeleton from '../../components/common/Skeleton.jsx';
-import Badge from '../../components/common/Badge.jsx';
-import useFetch from '../../hooks/useFetch.js';
 import { stockService } from '../../services/index.js';
 
 export default function Alerts() {
-  const { data: summary, loading: ls } = useFetch(() => stockService.summary().then((r) => r.summary), []);
-  const { data: expiring, loading: le } = useFetch(() => stockService.expiring(90).then((r) => r.batches), []);
+  const [alerts, setAlerts] = useState({ lowStock: [], expiring: [] });
+  const [loading, setLoading] = useState(true);
 
-  const low = (summary || []).filter((s) => Number(s.quantity ?? 0) <= Number(s.minLevel ?? 0));
+  useEffect(() => {
+    (async () => {
+      try { setAlerts(await stockService.alerts()); }
+      finally { setLoading(false); }
+    })();
+  }, []);
 
   return (
-    <div>
-      <PageHeader title="Stock Alerts" subtitle="Critical items requiring your attention." />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="card border-l-4 border-danger">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-ink-800 flex items-center gap-2"><AlertTriangle size={16} className="text-danger" /> Low Stock</h3>
-            <Badge status="rejected" label={`${low.length}`} />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section className="card">
+        <header className="flex items-center gap-2 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-danger-50 text-danger-600 flex items-center justify-center">
+            <AlertTriangle size={18} />
           </div>
-          {ls
-            ? <Skeleton lines={3} />
-            : low.length === 0
-              ? <EmptyState icon={<CheckCircle size={40} />} title="All clear" message="No products below minimum stock level." />
-              : (
-                <ul className="divide-y divide-slate-100">
-                  {low.map((s, i) => (
-                    <li key={i} className="py-3 flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-ink-800">{s.productName || s.name}</div>
-                        <div className="text-xs text-slate-500">Min: {s.minLevel ?? 0}</div>
+          <h3 className="text-lg font-semibold text-ink-800">Low Stock</h3>
+          <span className="ml-auto text-sm text-slate-500">{alerts.lowStock?.length || 0}</span>
+        </header>
+        {loading ? <div className="text-sm text-slate-500">Loading…</div>
+          : (alerts.lowStock || []).length === 0
+            ? <EmptyState icon="✅" title="All good" message="All products are above minimum stock level." />
+            : (
+              <ul className="divide-y divide-slate-100">
+                {alerts.lowStock.map((p) => (
+                  <li key={p.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-ink-800">{p.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {p.category === 'RAW_MATERIAL' ? 'Raw Material' : 'Finished Product'}
                       </div>
-                      <span className="text-danger font-semibold font-mono">{s.quantity ?? 0}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-        </section>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-danger-700">{p.currentStock} {p.unit}</div>
+                      <div className="text-xs text-slate-500">min {p.minStockLevel}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+      </section>
 
-        <section className="card border-l-4 border-warning">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-ink-800 flex items-center gap-2"><Clock size={16} className="text-warning-600" /> Expiring Batches</h3>
-            <Badge status="pending" label={`${(expiring || []).length}`} />
+      <section className="card">
+        <header className="flex items-center gap-2 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-warning-50 text-warning-600 flex items-center justify-center">
+            <Clock size={18} />
           </div>
-          {le
-            ? <Skeleton lines={3} />
-            : (expiring || []).length === 0
-              ? <EmptyState icon={<CheckCircle size={40} />} title="No expiring batches" message="No batches expiring in the next 90 days." />
-              : (
-                <ul className="divide-y divide-slate-100">
-                  {(expiring || []).map((b) => (
-                    <li key={b.id} className="py-3 flex items-center justify-between">
-                      <div>
-                        <div className="font-mono text-primary">{b.batchNumber}</div>
-                        <div className="text-xs text-slate-500">{b.productName || b.product?.name}</div>
+          <h3 className="text-lg font-semibold text-ink-800">Expiring Within 30 Days</h3>
+          <span className="ml-auto text-sm text-slate-500">{alerts.expiring?.length || 0}</span>
+        </header>
+        {loading ? <div className="text-sm text-slate-500">Loading…</div>
+          : (alerts.expiring || []).length === 0
+            ? <EmptyState icon="⏱️" title="Nothing expiring soon" message="No batches expire in the next 30 days." />
+            : (
+              <ul className="divide-y divide-slate-100">
+                {alerts.expiring.map((b) => (
+                  <li key={b.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <Link to={`/stock_manager/batch-tracking/${encodeURIComponent(b.batchNumber)}`}
+                        className="text-sm font-medium text-primary hover:underline">{b.batchNumber}</Link>
+                      <div className="text-xs text-slate-500">{b.product?.name}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-warning-700">
+                        {new Date(b.expiryDate).toLocaleDateString()}
                       </div>
-                      <span className="text-warning-600 text-sm font-medium">
-                        {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-        </section>
-      </div>
+                      <div className="text-xs text-slate-500">{b.quantity} {b.product?.unit}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+      </section>
     </div>
   );
 }

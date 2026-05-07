@@ -5,40 +5,31 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// External handlers wired in by app providers (avoids React import in this module).
 let onUnauthorized = null;
 let onGlobalError = null;
-export const setApiHandlers = ({ unauthorized, globalError } = {}) => {
-  onUnauthorized = unauthorized;
-  onGlobalError = globalError;
-};
+export function setApiHandlers({ unauthorized, globalError } = {}) {
+  if (unauthorized) onUnauthorized = unauthorized;
+  if (globalError) onGlobalError = globalError;
+}
 
-// Auto-refresh access token on 401
 let refreshing = null;
 api.interceptors.response.use(
-  (res) => res,
+  (r) => r,
   async (error) => {
-    const original = error.config || {};
+    const cfg = error.config || {};
     const status = error.response?.status;
-
-    if (status === 401 && !original._retry && !String(original.url || '').includes('/auth/')) {
-      original._retry = true;
+    if (!error.response) { onGlobalError?.('Network error'); return Promise.reject(error); }
+    if (status === 401 && !cfg._retry && !cfg.url?.includes('/auth/')) {
+      cfg._retry = true;
       try {
-        refreshing = refreshing || api.post('/auth/refresh');
+        if (!refreshing) refreshing = api.post('/auth/refresh').finally(() => { refreshing = null; });
         await refreshing;
-        refreshing = null;
-        return api(original);
-      } catch {
-        refreshing = null;
-        if (onUnauthorized) onUnauthorized();
+        return api.request(cfg);
+      } catch (_) {
+        onUnauthorized?.();
       }
-    } else if (status === 401) {
-      if (onUnauthorized) onUnauthorized();
-    } else if (!error.response) {
-      if (onGlobalError) onGlobalError('No connection. Please check your network.');
-    } else if (status >= 500) {
-      if (onGlobalError) onGlobalError('Server error, please try again.');
     }
+    if (status >= 500) onGlobalError?.(error.response.data?.message || 'Server error');
     return Promise.reject(error);
   }
 );

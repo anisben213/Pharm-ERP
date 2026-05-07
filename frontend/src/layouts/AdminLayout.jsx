@@ -1,22 +1,19 @@
+import { LayoutDashboard, Users as UsersIcon, Package } from 'lucide-react';
 import RoleLayout from './RoleLayout.jsx';
-import { LayoutDashboard, Users, Shield, ScrollText, Settings } from 'lucide-react';
 
 const menu = [
-  { to: '/admin',          end: true, icon: <LayoutDashboard size={18} />, label: 'Global Dashboard' },
-  { to: '/admin/users',               icon: <Users size={18} />,           label: 'Users' },
-  { to: '/admin/roles',               icon: <Shield size={18} />,          label: 'Roles & Permissions' },
-  { to: '/admin/logs',                icon: <ScrollText size={18} />,      label: 'System Logs' },
-  { to: '/admin/settings',            icon: <Settings size={18} />,        label: 'Settings' },
+  { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
+  { to: '/admin/users', label: 'Users', icon: <UsersIcon size={18} /> },
+  { to: '/admin/products', label: 'Products', icon: <Package size={18} /> },
 ];
 
 const titles = {
-  '/admin':          'Global Dashboard',
-  '/admin/users':    'Users',
-  '/admin/roles':    'Roles & Permissions',
-  '/admin/logs':     'System Logs',
-  '/admin/settings': 'Settings',
+  '/admin': 'Dashboard',
+  '/admin/users': 'Users',
+  '/admin/products': 'Products',
+  '/admin/notifications': 'Notifications',
 };
 
 export default function AdminLayout() {
-  return <RoleLayout menu={menu} titles={titles} defaultTitle="Global Dashboard" />;
+  return <RoleLayout menu={menu} titles={titles} />;
 }

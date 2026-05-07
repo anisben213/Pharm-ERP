@@ -1,121 +1,170 @@
-import { useState } from 'react';
-import { Plus, Pencil, X, Check } from 'lucide-react';
-import PageHeader from '../../components/common/PageHeader.jsx';
-import Table, { IconButton } from '../../components/common/Table.jsx';
-import Badge from '../../components/common/Badge.jsx';
-import FormModal from '../../components/forms/FormModal.jsx';
-import InputField from '../../components/forms/InputField.jsx';
-import SelectField from '../../components/forms/SelectField.jsx';
-import { ConfirmModal } from '../../components/common/Modal.jsx';
-import useFetch from '../../hooks/useFetch.js';
-import { useToast } from '../../hooks/useToast.js';
+import { useEffect, useState } from 'react';
+import { Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react';
+import Table from '../../components/common/Table.jsx';
+import Modal from '../../components/common/Modal.jsx';
+import StatusBadge from '../../components/common/StatusBadge.jsx';
+import ActionButton from '../../components/common/ActionButton.jsx';
 import { userService } from '../../services/index.js';
-import { ROLE_KEYS, ROLE_LABEL } from '../../utils/roles.js';
+import { useToast } from '../../hooks/useToast.js';
 
-const BACKEND_ROLES = ['ADMIN', 'PURCHASER', 'STOCK_MANAGER', 'WAREHOUSE_KEEPER', 'PRODUCTION_MANAGER', 'QUALITY_CONTROLLER', 'LAB_TECHNICIAN', 'SALES_AGENT'];
+const ROLE_OPTIONS = [
+  { value: 'ADMIN', label: 'Administrator' },
+  { value: 'STOCK_MANAGER', label: 'Stock Manager' },
+  { value: 'PRODUCTION_MANAGER', label: 'Production Manager' },
+  { value: 'PURCHASE_MANAGER', label: 'Purchase Manager' },
+  { value: 'QUALITY_MANAGER', label: 'Quality Manager' },
+  { value: 'SALES_MANAGER', label: 'Sales Manager' },
+];
 
-export default function Users() {
+const ROLE_LABEL = Object.fromEntries(ROLE_OPTIONS.map((o) => [o.value, o.label]));
+
+export default function AdminUsers() {
   const toast = useToast();
-  const { data, loading, refetch } = useFetch(() => userService.list().then((r) => r.users), []);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [confirm, setConfirm] = useState(null);
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'STOCK_MANAGER' });
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null); // { mode: 'create' | 'edit', user }
 
-  const openCreate = () => { setEditing(null); setForm({ fullName: '', email: '', password: '', role: 'STOCK_MANAGER' }); setErrors({}); setOpen(true); };
-  const openEdit = (u) => { setEditing(u); setForm({ fullName: u.fullName || '', email: u.email, password: '', role: u.role }); setErrors({}); setOpen(true); };
-
-  const submit = async () => {
-    const e = {};
-    if (!form.fullName) e.fullName = { message: 'Name is required', show: true };
-    if (!form.email || !/.+@.+/.test(form.email)) e.email = { message: 'Valid email required', show: true };
-    if (!editing && (!form.password || form.password.length < 6)) e.password = { message: 'Password ≥ 6 chars', show: true };
-    if (Object.keys(e).length) { setErrors(e); return; }
-    setSaving(true);
-    try {
-      if (editing) {
-        const body = { fullName: form.fullName, email: form.email, role: form.role };
-        if (form.password) body.password = form.password;
-        await userService.update(editing.id, body);
-        toast.success('User updated');
-      } else {
-        await userService.create({ fullName: form.fullName, email: form.email, password: form.password, role: form.role });
-        toast.success('User created');
-      }
-      setOpen(false); refetch();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to save user');
-    } finally { setSaving(false); }
+  const load = async () => {
+    setLoading(true);
+    try { setUsers(await userService.list()); } finally { setLoading(false); }
   };
+  useEffect(() => { load(); }, []);
 
-  const toggleActive = async (u) => {
+  const toggle = async (u) => {
     try {
-      await userService.update(u.id, { isActive: !u.isActive });
-      toast.success(u.isActive ? 'User deactivated' : 'User activated');
-      refetch();
-    } catch (e) {
-      toast.error('Failed to update status');
-    }
+      if (u.isActive) await userService.deactivate(u.id);
+      else await userService.activate(u.id);
+      toast.success(`User ${u.username} ${u.isActive ? 'deactivated' : 'activated'}`);
+      load();
+    } catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
   };
 
   return (
-    <div>
-      <PageHeader
-        title="Users"
-        actions={<button className="btn-primary" onClick={openCreate}><Plus size={16} /> Add User</button>}
-      />
-
+    <div className="space-y-4">
       <Table
-        loading={loading} data={data || []}
-        searchKeys={['fullName', 'email']}
-        filters={[{ key: 'role', label: 'All roles', options: BACKEND_ROLES.map((r) => ({ value: r, label: r })) }]}
         columns={[
-          { key: 'avatar', header: '', render: (r) => (
-            <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-semibold">
-              {(r.fullName || r.email || '?').slice(0, 1).toUpperCase()}
-            </div>
-          )},
-          { key: 'fullName', header: 'Full Name',  sortable: true, render: (r) => r.fullName || '—' },
-          { key: 'email',    header: 'Email',       sortable: true },
-          { key: 'role',     header: 'Role',        render: (r) => <Badge status="info" label={r.role} /> },
-          { key: 'isActive', header: 'Status',      render: (r) => <Badge status={r.isActive === false ? 'inactive' : 'active'} label={r.isActive === false ? 'Inactive' : 'Active'} /> },
-          { key: 'lastLoginAt', header: 'Last Login', render: (r) => r.lastLoginAt ? new Date(r.lastLoginAt).toLocaleString() : '\u2014' },
+          { key: 'username', header: 'Username', sortable: true },
+          { key: 'fullName', header: 'Full Name', sortable: true },
+          { key: 'email', header: 'Email' },
+          { key: 'role', header: 'Role', render: (u) => <StatusBadge status={u.role} /> },
+          { key: 'isActive', header: 'Status', render: (u) => (
+            <span className={u.isActive ? 'text-success-700' : 'text-slate-400'}>
+              {u.isActive ? 'Active' : 'Inactive'}
+            </span>
+          ) },
         ]}
-        actions={(r) => (
-          <div className="flex gap-1 justify-center">
-            <IconButton icon={<Pencil size={15} />} title="Edit" color="primary" onClick={() => openEdit(r)} />
-            <IconButton
-              icon={r.isActive === false ? <Check size={15} /> : <X size={15} />}
-              title={r.isActive === false ? 'Activate' : 'Deactivate'}
-              color={r.isActive === false ? 'success' : 'danger'}
-              onClick={() => setConfirm(r)}
-            />
+        data={users}
+        loading={loading}
+        searchKeys={['username', 'fullName', 'email']}
+        rightToolbar={(
+          <ActionButton icon={<Plus size={16} />} onClick={() => setModal({ mode: 'create' })}>
+            Add User
+          </ActionButton>
+        )}
+        actions={(u) => (
+          <div className="flex items-center justify-center gap-2">
+            <ActionButton variant="view" size="sm" icon={<Pencil size={14} />} onClick={() => setModal({ mode: 'edit', user: u })}>
+              Edit
+            </ActionButton>
+            <ActionButton variant={u.isActive ? 'danger' : 'validate'} size="sm"
+              icon={u.isActive ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
+              onClick={() => toggle(u)}>
+              {u.isActive ? 'Deactivate' : 'Activate'}
+            </ActionButton>
           </div>
         )}
-        empty={{ icon: '👥', title: 'No users', message: 'Add your first user.', action: <button className="btn-primary" onClick={openCreate}>Add User</button> }}
+        empty={{ icon: '👥', title: 'No users', message: 'Add your first user to get started.' }}
       />
 
-      <FormModal open={open} onClose={() => setOpen(false)} title={editing ? 'Edit User' : 'Add User'} onSubmit={submit} loading={saving}>
-        <InputField label="Full Name" required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} error={errors.fullName} />
-        <InputField label="Email" required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} />
-        <InputField label={editing ? 'New password (leave blank to keep)' : 'Password'} type="password" required={!editing}
-          value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} error={errors.password} />
-        <SelectField label="Role" required value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-          options={BACKEND_ROLES.map((r) => ({ value: r, label: r }))}
+      {modal && (
+        <UserFormModal
+          mode={modal.mode}
+          user={modal.user}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); load(); }}
         />
-      </FormModal>
-
-      <ConfirmModal
-        open={!!confirm}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => { toggleActive(confirm); setConfirm(null); }}
-        danger={confirm?.isActive !== false}
-        title={confirm?.isActive === false ? 'Activate user' : 'Deactivate user'}
-        confirmLabel={confirm?.isActive === false ? 'Activate' : 'Deactivate'}
-        message={`Are you sure you want to ${confirm?.isActive === false ? 'activate' : 'deactivate'} ${confirm?.fullName || confirm?.email}?`}
-      />
+      )}
     </div>
+  );
+}
+
+function UserFormModal({ mode, user, onClose, onSaved }) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    username: user?.username || '',
+    fullName: user?.fullName || '',
+    email: user?.email || '',
+    role: user?.role || 'STOCK_MANAGER',
+    password: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      if (mode === 'create') {
+        await userService.create(form);
+        toast.success('User created');
+      } else {
+        const update = { ...form };
+        if (!update.password) delete update.password;
+        delete update.username;
+        await userService.update(user.id, update);
+        toast.success('User updated');
+      }
+      onSaved();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save');
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={mode === 'create' ? 'Add User' : `Edit ${user?.username}`}
+      footer={(
+        <>
+          <button className="btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button form="user-form" type="submit" className="btn-primary" disabled={submitting}>
+            {submitting ? 'Saving…' : 'Save'}
+          </button>
+        </>
+      )}
+    >
+      <form id="user-form" onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="label-xs block mb-1.5">Username</label>
+          <input className="input" required value={form.username} disabled={mode === 'edit'}
+            onChange={(e) => setForm({ ...form, username: e.target.value })} />
+        </div>
+        <div>
+          <label className="label-xs block mb-1.5">Full Name</label>
+          <input className="input" required value={form.fullName}
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+        </div>
+        <div>
+          <label className="label-xs block mb-1.5">Email</label>
+          <input type="email" className="input" required value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        </div>
+        <div>
+          <label className="label-xs block mb-1.5">Role</label>
+          <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label-xs block mb-1.5">
+            Password {mode === 'edit' && <span className="text-slate-400">(leave blank to keep)</span>}
+          </label>
+          <input type="password" className="input" minLength={8}
+            required={mode === 'create'}
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })} />
+        </div>
+      </form>
+    </Modal>
   );
 }

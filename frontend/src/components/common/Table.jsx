@@ -165,7 +165,7 @@ export default function Table({
                   </td>
                 ))}
                 {actions && (
-                  <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                     {actions(row)}
                   </td>
                 )}

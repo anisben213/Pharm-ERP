@@ -1,237 +1,272 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Eye, Truck, RotateCcw } from 'lucide-react';
-import PageHeader from '../../components/common/PageHeader.jsx';
-import Table, { IconButton } from '../../components/common/Table.jsx';
-import Badge from '../../components/common/Badge.jsx';
-import Modal from '../../components/common/Modal.jsx';
-import { ConfirmModal } from '../../components/common/Modal.jsx';
-import SelectField from '../../components/forms/SelectField.jsx';
-import useFetch from '../../hooks/useFetch.js';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, CheckCircle2, Trash2 } from 'lucide-react';
+import Table from '../../components/common/Table.jsx';
+import Modal, { ConfirmModal } from '../../components/common/Modal.jsx';
+import StatusBadge from '../../components/common/StatusBadge.jsx';
+import ActionButton from '../../components/common/ActionButton.jsx';
+import { salesOrderService, clientService, productService } from '../../services/index.js';
 import { useToast } from '../../hooks/useToast.js';
-import { salesService, customerService, productService, stockService } from '../../services/index.js';
+
+function totalOf(o) {
+  return (o.items || []).reduce((s, it) => s + Number(it.unitPrice || 0) * Number(it.quantity || 0), 0);
+}
 
 export default function SalesOrders() {
-  const navigate = useNavigate();
   const toast = useToast();
-  const { data, loading, refetch } = useFetch(() => salesService.list().then((r) => r.orders), []);
-  const { data: customers } = useFetch(() => customerService.list().then((r) => r.customers).catch(() => []), []);
-  const { data: products } = useFetch(() => productService.list().then((r) => r.products).catch(() => []), []);
-  const { data: summary } = useFetch(() => stockService.summary().then((r) => r.summary).catch(() => []), []);
-  const stockOf = (id) => Number((summary || []).find((s) => (s.productId || s.id) === id)?.quantity ?? 0);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [confirming, setConfirming] = useState(null);
+  const [working, setWorking] = useState(false);
 
-  const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(1);
-  const [customerId, setCustomerId] = useState('');
-  const [lines, setLines] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [delivering, setDelivering] = useState(null);
-  const [returning, setReturning] = useState(null);
-  const [acting, setActing] = useState(false);
-
-  const reset = () => { setStep(1); setCustomerId(''); setLines([]); };
-  const close = () => { setOpen(false); reset(); };
-
-  const doDeliver = async () => {
-    setActing(true);
-    try {
-      await salesService.deliver(delivering.id);
-      toast.success(`Order ${delivering.reference} marked as delivered`);
-      setDelivering(null);
-      refetch();
-    } catch (e) {
-      toast.error(e?.response?.data?.message || 'Failed to deliver');
-    } finally { setActing(false); }
+  const load = async () => {
+    setLoading(true);
+    try { setOrders(await salesOrderService.list()); }
+    finally { setLoading(false); }
   };
+  useEffect(() => { load(); }, []);
 
-  const doReturn = async () => {
-    setActing(true);
+  const confirm = async () => {
+    setWorking(true);
     try {
-      await salesService.returnOrder(returning.id);
-      toast.success(`Order ${returning.reference} returned — stock restored`);
-      setReturning(null);
-      refetch();
-    } catch (e) {
-      toast.error(e?.response?.data?.message || 'Failed to process return');
-    } finally { setActing(false); }
-  };
-
-  const insufficient = useMemo(() => lines.filter((l) => l.productId && Number(l.quantity || 0) > stockOf(l.productId)), [lines, summary]);
-
-  const submit = async () => {
-    if (!customerId) { toast.warning('Select a client'); return; }
-    const validLines = lines.filter((l) => l.productId && Number(l.quantity) > 0);
-    if (validLines.length === 0) { toast.warning('Add at least one product'); return; }
-    if (insufficient.length > 0) { toast.error('Insufficient stock for some products'); return; }
-    setSaving(true);
-    try {
-      await salesService.create({
-        customerId,
-        lines: validLines.map((l) => ({
-          productId: l.productId,
-          quantity: Number(l.quantity),
-          unitPrice: Number(l.unitPrice || 0),
-        })),
-      });
-      toast.success('Sales order created');
-      close();
-      refetch();
-    } catch (e) {
-      toast.error(e?.response?.data?.message || 'Failed to create order');
-    } finally { setSaving(false); }
+      await salesOrderService.confirm(confirming.id);
+      toast.success(`Order ${confirming.orderNumber} confirmed — Stock notified`);
+      setConfirming(null); load();
+    } catch (e) { toast.error(e.response?.data?.message || 'Confirmation failed'); }
+    finally { setWorking(false); }
   };
 
   return (
-    <div>
-      <PageHeader
-        title="Sales Orders"
-        actions={<button className="btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Create Order</button>}
-      />
-
+    <div className="space-y-4">
       <Table
-        loading={loading}
-        data={data || []}
-        searchKeys={['orderNumber', 'customerName']}
-        filters={[{ key: 'status', label: 'All statuses', options: [
-          { value: 'CONFIRMED',  label: 'Confirmed' },
-          { value: 'DELIVERED',  label: 'Delivered' },
-          { value: 'CANCELLED',  label: 'Cancelled' },
-          { value: 'RETURNED',   label: 'Returned' },
-        ]}]}
-        onRowClick={(r) => navigate(`/sales_manager/orders/${r.id}`)}
         columns={[
-          { key: 'reference',   header: 'Order #', render: (r) => <span className="font-mono">{r.reference || r.id}</span> },
-          { key: 'customerName', header: 'Client',  render: (r) => r.customer?.name || r.customerName || '—' },
-          { key: 'createdAt',    header: 'Date',    sortable: true, render: (r) => new Date(r.createdAt || r.date).toLocaleDateString() },
-          { key: 'status',       header: 'Status',  render: (r) => <Badge status={r.status} /> },
-          { key: 'total',       header: 'Total',   sortable: true, render: (r) => { const t = (r.lines || []).reduce((s, l) => s + Number(l.quantity || 0) * Number(l.unitPrice || 0), 0); return t.toLocaleString(undefined, { minimumFractionDigits: 2 }); } },
+          { key: 'orderNumber', header: 'Order', sortable: true },
+          { key: 'client', header: 'Client', accessor: (o) => o.client?.name },
+          {
+            key: 'createdAt', header: 'Date', sortable: true,
+            accessor: (o) => o.createdAt,
+            render: (o) => new Date(o.createdAt).toLocaleDateString(),
+          },
+          { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
+          { key: 'total', header: 'Total', render: (o) => `$${totalOf(o).toFixed(2)}` },
         ]}
-        actions={(r) => (
-          <div className="flex gap-1 justify-center">
-            <IconButton icon={<Eye size={15} />} title="View" color="primary" onClick={(e) => { e.stopPropagation(); navigate(`/sales_manager/orders/${r.id}`); }} />
-            {r.status === 'CONFIRMED' && (
-              <IconButton icon={<Truck size={15} />} title="Mark Delivered" color="success" onClick={(e) => { e.stopPropagation(); setDelivering(r); }} />
-            )}
-            {r.status === 'DELIVERED' && (
-              <IconButton icon={<RotateCcw size={15} />} title="Process Return" color="slate" onClick={(e) => { e.stopPropagation(); setReturning(r); }} />
-            )}
-          </div>
+        data={orders}
+        loading={loading}
+        searchKeys={['orderNumber']}
+        rightToolbar={(
+          <ActionButton icon={<Plus size={16} />} onClick={() => setCreateOpen(true)}>
+            New Sales Order
+          </ActionButton>
         )}
-        empty={{ icon: '🛒', title: 'No sales orders yet', message: 'Create your first sales order.', action: <button className="btn-primary" onClick={() => setOpen(true)}>Create Order</button> }}
+        actions={(o) => o.status === 'PENDING' ? (
+          <ActionButton variant="confirm" size="sm" icon={<CheckCircle2 size={14} />} onClick={() => setConfirming(o)}>
+            Confirm Order
+          </ActionButton>
+        ) : null}
+        empty={{ icon: '🛍️', title: 'No sales orders', message: 'Create your first order.' }}
       />
 
-      <Modal
-        open={open} onClose={close}
-        title={`Create Sales Order — Step ${step} of 3`}
-        size="lg"
-        footer={(
-          <>
-            <button className="btn-ghost" onClick={close} disabled={saving}>Cancel</button>
-            {step > 1 && <button className="btn-outline" onClick={() => setStep(step - 1)} disabled={saving}>← Back</button>}
-            {step < 3 && (
-              <button
-                className="btn-primary"
-                onClick={() => setStep(step + 1)}
-                disabled={(step === 1 && !customerId) || (step === 2 && lines.length === 0)}
-              >Next →</button>
-            )}
-            {step === 3 && (
-              <button className="btn-primary" onClick={submit} disabled={saving || insufficient.length > 0}>
-                {saving ? 'Creating…' : '✓ Confirm Order'}
-              </button>
-            )}
-          </>
-        )}
-      >
-        {step === 1 && (
-          <SelectField label="Client" required value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            options={(customers || []).map((c) => ({ value: c.id, label: c.name }))}
-          />
-        )}
+      {createOpen && <CreateSalesOrderModal onClose={() => setCreateOpen(false)} onSaved={() => { setCreateOpen(false); load(); }} />}
 
-        {step === 2 && (
-          <>
-            <div className="space-y-2">
-              {lines.map((l, i) => {
-                const stock = stockOf(l.productId);
-                const insuf = l.productId && Number(l.quantity || 0) > stock;
+      <ConfirmModal
+        open={!!confirming}
+        onClose={() => setConfirming(null)}
+        onConfirm={confirm}
+        title="Confirm sales order?"
+        message={confirming
+          ? `Stock will be allocated for ${confirming.client?.name} and Stock Manager will be notified to prepare delivery.`
+          : ''}
+        confirmLabel="Confirm Order"
+        loading={working}
+      />
+    </div>
+  );
+}
+
+function CreateSalesOrderModal({ onClose, onSaved }) {
+  const toast = useToast();
+  const [step, setStep] = useState(1);
+  const [clients, setClients] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [clientId, setClientId] = useState('');
+  const [items, setItems] = useState([]); // [{productId, quantity, unitPrice}]
+  const [submitting, setSubmitting] = useState(false);
+  const [created, setCreated] = useState(null);
+
+  useEffect(() => {
+    Promise.all([clientService.list(), productService.catalog()])
+      .then(([c, cat]) => { setClients(c); setCatalog(cat); });
+  }, []);
+
+  const productById = useMemo(() => Object.fromEntries(catalog.map((p) => [p.id, p])), [catalog]);
+
+  const addProduct = () => setItems([...items, { productId: catalog[0]?.id || '', quantity: 1, unitPrice: 50 }]);
+  const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
+  const updateItem = (i, patch) => setItems(items.map((it, idx) => idx === i ? { ...it, ...patch } : it));
+
+  const total = items.reduce((s, it) => s + Number(it.unitPrice || 0) * Number(it.quantity || 0), 0);
+
+  const canNext1 = !!clientId;
+  const canNext2 = items.length > 0 && items.every((it) => it.productId && Number(it.quantity) > 0
+    && Number(it.quantity) <= (productById[it.productId]?.availableQuantity || 0));
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      const order = await salesOrderService.create({
+        clientId,
+        items: items.map((it) => ({
+          productId: it.productId,
+          quantity: Number(it.quantity),
+          unitPrice: Number(it.unitPrice),
+        })),
+      });
+      setCreated(order);
+      toast.success(`Order ${order.orderNumber} created`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed');
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Modal open onClose={created ? onSaved : onClose}
+      title={created ? 'Order Created' : `New Sales Order — Step ${step} of 3`}
+      footer={created ? (
+        <button className="btn-primary" onClick={onSaved}>Done</button>
+      ) : (
+        <>
+          <button className="btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+          {step > 1 && <button className="btn-outline" onClick={() => setStep(step - 1)} disabled={submitting}>Back</button>}
+          {step < 3 && (
+            <button className="btn-primary"
+              disabled={(step === 1 && !canNext1) || (step === 2 && !canNext2)}
+              onClick={() => setStep(step + 1)}>Next</button>
+          )}
+          {step === 3 && (
+            <button className="btn-primary" onClick={submit} disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create Order'}
+            </button>
+          )}
+        </>
+      )}
+    >
+      {created ? (
+        <div className="space-y-2 text-sm">
+          <div><span className="text-slate-500">Order:</span> <span className="font-medium">{created.orderNumber}</span></div>
+          <div><span className="text-slate-500">Status:</span> <StatusBadge status={created.status} /></div>
+          <p className="text-slate-500 mt-3">Confirm the order from the list to allocate stock.</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-5">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className={`flex-1 h-1.5 rounded-full ${s <= step ? 'bg-primary' : 'bg-slate-200'}`} />
+            ))}
+          </div>
+
+          {step === 1 && (
+            <div>
+              <label className="label-xs block mb-1.5">Select Client</label>
+              <select className="input" value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                <option value="">Choose client…</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="label-xs">Order Items</div>
+                <button onClick={addProduct} type="button"
+                  className="text-sm text-primary hover:underline cursor-pointer flex items-center gap-1">
+                  <Plus size={14} /> Add product
+                </button>
+              </div>
+              {items.length === 0 && (
+                <div className="text-sm text-slate-500 text-center py-6 bg-slate-50 rounded-lg">
+                  No items yet. Click "Add product" to start.
+                </div>
+              )}
+              {items.map((it, idx) => {
+                const p = productById[it.productId];
+                const stock = p?.availableQuantity || 0;
+                const overStock = Number(it.quantity) > stock;
                 return (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-start">
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-end border border-slate-200 rounded-lg p-3">
                     <div className="col-span-5">
-                      <select className="input"
-                        value={l.productId}
-                        onChange={(e) => setLines((ls) => ls.map((x, idx) => idx === i ? { ...x, productId: e.target.value } : x))}
-                      >
-                        <option value="" disabled>Select product…</option>
-                        {(products || []).filter((p) => p.type === 'FINISHED_PRODUCT').map((p) => (
-                          <option key={p.id} value={p.id}>{p.name} — {stockOf(p.id)} in stock</option>
+                      <label className="label-xs block mb-1">Product</label>
+                      <select className="input" value={it.productId}
+                        onChange={(e) => updateItem(idx, { productId: e.target.value })}>
+                        {catalog.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.availableQuantity} {p.unit})
+                          </option>
                         ))}
                       </select>
-                      {insuf && <p className="text-xs text-danger mt-1">Only {stock} available</p>}
                     </div>
-                    <input type="number" min="1" placeholder="Qty" className={`input col-span-2 ${insuf ? 'input-error' : ''}`}
-                      value={l.quantity}
-                      onChange={(e) => setLines((ls) => ls.map((x, idx) => idx === i ? { ...x, quantity: e.target.value } : x))}
-                    />
-                    <input type="number" min="0" step="0.01" placeholder="Unit price" className="input col-span-3"
-                      value={l.unitPrice}
-                      onChange={(e) => setLines((ls) => ls.map((x, idx) => idx === i ? { ...x, unitPrice: e.target.value } : x))}
-                    />
-                    <button type="button" className="col-span-2 text-danger hover:bg-danger-50 rounded-lg cursor-pointer py-2"
-                      onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>Remove</button>
+                    <div className="col-span-3">
+                      <label className="label-xs block mb-1">Quantity</label>
+                      <input type="number" min="1" step="0.01"
+                        className={`input ${overStock ? 'input-error' : ''}`}
+                        value={it.quantity}
+                        onChange={(e) => updateItem(idx, { quantity: e.target.value })} />
+                      {p && <div className="text-[10px] text-slate-500 mt-0.5">Stock: {stock} {p.unit}</div>}
+                    </div>
+                    <div className="col-span-3">
+                      <label className="label-xs block mb-1">Unit Price ($)</label>
+                      <input type="number" min="0" step="0.01" className="input" value={it.unitPrice}
+                        onChange={(e) => updateItem(idx, { unitPrice: e.target.value })} />
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <button type="button" onClick={() => removeItem(idx)}
+                        className="p-2 text-danger hover:bg-danger-50 rounded-lg cursor-pointer transition-all duration-200">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
-            <button type="button" className="btn-outline mt-3" onClick={() => setLines((ls) => [...ls, { productId: '', quantity: '', unitPrice: '' }])}><Plus size={16} /> Add product</button>
-          </>
-        )}
+          )}
 
-        {step === 3 && (
-          <div>
-            <h4 className="font-semibold mb-2">Review</h4>
-            <p className="text-sm text-slate-600 mb-3">Client: <span className="font-medium text-ink-800">{(customers || []).find((c) => c.id === customerId)?.name || '—'}</span></p>
-            <ul className="text-sm divide-y divide-slate-100 mb-3">
-              {lines.map((l, i) => {
-                const p = (products || []).find((x) => x.id === l.productId);
-                const stock = stockOf(l.productId);
-                const insuf = Number(l.quantity || 0) > stock;
-                return (
-                  <li key={i} className="py-2 flex justify-between">
-                    <span>{p?.name || '—'} × {l.quantity}</span>
-                    {insuf
-                      ? <span className="text-danger text-xs">⚠ Insufficient stock</span>
-                      : <span className="text-success-600 text-xs">✓ In stock</span>}
-                  </li>
-                );
-              })}
-            </ul>
-            {insufficient.length > 0 && <p className="text-sm text-danger">Resolve stock issues before confirming.</p>}
-          </div>
-        )}
-      </Modal>
-
-      <ConfirmModal
-        open={!!delivering}
-        onClose={() => setDelivering(null)}
-        title="Confirm Delivery"
-        message={`Mark order ${delivering?.reference} as DELIVERED? This action cannot be undone.`}
-        confirmLabel="Deliver"
-        loading={acting}
-        onConfirm={doDeliver}
-      />
-
-      <ConfirmModal
-        open={!!returning}
-        onClose={() => setReturning(null)}
-        title="Process Return"
-        message={`Mark order ${returning?.reference} as RETURNED? Batch quantities will be restored to stock.`}
-        confirmLabel="Confirm Return"
-        loading={acting}
-        onConfirm={doReturn}
-        destructive
-      />
-    </div>
+          {step === 3 && (
+            <div className="space-y-4">
+              <div>
+                <div className="label-xs mb-1">Client</div>
+                <div className="font-medium text-ink-800">
+                  {clients.find((c) => c.id === clientId)?.name}
+                </div>
+              </div>
+              <div>
+                <div className="label-xs mb-2">Items</div>
+                <div className="border border-slate-200 rounded-lg divide-y divide-slate-100">
+                  {items.map((it, idx) => {
+                    const p = productById[it.productId];
+                    return (
+                      <div key={idx} className="px-3 py-2 flex justify-between text-sm">
+                        <div>
+                          <div className="font-medium text-ink-800">{p?.name}</div>
+                          <div className="text-xs text-slate-500">
+                            {it.quantity} {p?.unit} × ${Number(it.unitPrice).toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="font-medium text-ink-800">
+                          ${(Number(it.quantity) * Number(it.unitPrice)).toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex justify-between items-center border-t border-slate-200 pt-3">
+                <span className="text-slate-500">Total</span>
+                <span className="text-xl font-semibold text-ink-800">${total.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </Modal>
   );
 }

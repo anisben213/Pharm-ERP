@@ -1,27 +1,26 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Bell, ChevronDown, User, LogOut, Truck } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Bell, ChevronDown, User, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { ROLE_LABEL, roleKey } from '../../utils/roles.js';
+import { useNotifications } from '../../context/NotificationContext.jsx';
+import { ROLE_LABEL, roleKey, roleHome } from '../../utils/roles.js';
 
-export default function Topbar({ title, breadcrumb = [], notifications = 0, notificationItems = [] }) {
+export default function Topbar({ title, breadcrumb = [] }) {
   const { user, logout } = useAuth();
+  const { unread } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
   const ref = useRef(null);
-  const notifRef = useRef(null);
 
   useEffect(() => {
     const onClick = (e) => {
       if (!ref.current?.contains(e.target)) setOpen(false);
-      if (!notifRef.current?.contains(e.target)) setNotifOpen(false);
     };
     window.addEventListener('mousedown', onClick);
     return () => window.removeEventListener('mousedown', onClick);
   }, []);
-  useEffect(() => { setOpen(false); setNotifOpen(false); }, [location.pathname]);
+  useEffect(() => { setOpen(false); }, [location.pathname]);
 
   const handleLogout = async () => {
     try { await logout(); } finally { navigate('/login', { replace: true }); }
@@ -29,6 +28,9 @@ export default function Topbar({ title, breadcrumb = [], notifications = 0, noti
 
   const initials = (user?.fullName || user?.email || '?')
     .split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
+
+  const home = roleHome(user);
+  const notifLink = `${home}/notifications`;
 
   return (
     <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 sticky top-0 z-30">
@@ -47,54 +49,18 @@ export default function Topbar({ title, breadcrumb = [], notifications = 0, noti
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Notification bell */}
-        <div ref={notifRef} className="relative">
-          <button
-            onClick={() => setNotifOpen((v) => !v)}
-            className="relative w-10 h-10 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors flex items-center justify-center text-slate-500"
-            title="Notifications"
-          >
-            <Bell size={20} />
-            {notifications > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center">
-                {notifications}
-              </span>
-            )}
-          </button>
-
-          {notifOpen && (
-            <div className="absolute right-0 top-12 w-80 bg-white border border-slate-200 rounded-xl shadow-cardHover z-50 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
-                <span className="text-sm font-semibold text-ink-800">Notifications</span>
-                {notifications > 0 && (
-                  <span className="text-xs bg-danger text-white px-1.5 py-0.5 rounded-full">{notifications}</span>
-                )}
-              </div>
-              {notificationItems.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm text-slate-400">No new notifications</div>
-              ) : (
-                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                  {notificationItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => { navigate(item.to); setNotifOpen(false); }}
-                      className="w-full text-left px-4 py-3 hover:bg-primary-50 transition-colors flex items-start gap-3"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-warning-100 text-warning-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Truck size={13} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-ink-800">{item.title}</p>
-                        <p className="text-xs text-slate-500">{item.subtitle}</p>
-                        <p className="text-xs text-primary mt-0.5">→ Generate delivery note</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+        <Link
+          to={notifLink}
+          className="relative w-10 h-10 rounded-lg hover:bg-slate-100 transition-colors flex items-center justify-center text-slate-500"
+          title="Notifications"
+        >
+          <Bell size={20} />
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center">
+              {unread > 99 ? '99+' : unread}
+            </span>
           )}
-        </div>
+        </Link>
 
         <div ref={ref} className="relative">
           <button
@@ -111,7 +77,10 @@ export default function Topbar({ title, breadcrumb = [], notifications = 0, noti
             <span className="text-slate-400"><ChevronDown size={14} /></span>
           </button>
           {open && (
-            <div className="absolute right-0 top-12 w-56 bg-white border border-slate-200 rounded-xl shadow-cardHover overflow-hidden">
+            <div className="absolute right-0 top-12 w-56 bg-white border border-slate-200 rounded-xl shadow-cardHover overflow-hidden z-50">
+              <div className="px-4 py-2.5 text-xs text-slate-500 border-b border-slate-100">
+                Signed in as <strong className="text-ink-800">{user?.username}</strong>
+              </div>
               <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 cursor-pointer flex items-center gap-2">
                 <User size={14} className="text-slate-400" /> Profile
               </button>

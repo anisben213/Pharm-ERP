@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { authService } from '../services';
+import { authService } from '../services/index.js';
 
 const AuthContext = createContext(null);
 
@@ -8,28 +8,31 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
     authService.me()
-      .then((d) => setUser(d.user))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .then((d) => { if (mounted) setUser(d.user); })
+      .catch(() => { if (mounted) setUser(null); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, []);
 
-  const login = async (email, password) => {
-    const { user: u } = await authService.login({ email, password });
-    setUser(u);
-    return u;
+  const login = async (username, password) => {
+    const data = await authService.login(username, password);
+    setUser(data.user);
+    return data.user;
   };
 
   const logout = async () => {
-    await authService.logout();
+    try { await authService.logout(); } catch (_) { /* ignore */ }
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
