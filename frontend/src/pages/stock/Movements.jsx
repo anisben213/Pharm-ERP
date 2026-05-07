@@ -19,11 +19,11 @@ export default function Movements() {
     <Table
       columns={[
         {
-          key: 'createdAt',
+          key: 'date',
           header: 'Date',
           sortable: true,
-          accessor: (m) => m.createdAt,
-          render: (m) => new Date(m.createdAt).toLocaleString(),
+          accessor: (m) => m.date,
+          render: (m) => m.date ? new Date(m.date).toLocaleString() : '—',
         },
         {
           key: 'type',

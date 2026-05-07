@@ -122,65 +122,26 @@ router.put('/batch/:batchId/reject', rbac('ADMIN', 'QUALITY_MANAGER'), async (re
       const control = await tx.qualityControl.create({
         data: { batchId, result: 'REJECTED', notes, userId: req.user.id, origin: batch.origin },
       });
-      await tx.batch.update({ where: { id: batchId }, data: { status: 'REJECTED' } });
 
-      let reworkOrder = null;
       if (batch.origin === 'PRODUCTION') {
-        // close the original MO and create a rework MO for same product/qty
+        // Reset the same batch + MO back to IN_PROGRESS so production can rework it
+        await tx.batch.update({ where: { id: batchId }, data: { status: 'IN_PROGRESS' } });
         if (batch.manufacturingOrder) {
-          await tx.manufacturingOrder.update({ where: { id: batch.manufacturingOrder.id }, data: { status: 'CLOSED' } });
+          await tx.manufacturingOrder.update({ where: { id: batch.manufacturingOrder.id }, data: { status: 'IN_PROGRESS' } });
         }
-        // generate codes inside the txn
-        const year = new Date().getUTCFullYear();
-        // simple sequence: count + 1 via raw query of existing codes
-        const all = await tx.manufacturingOrder.findMany({ where: { orderNumber: { startsWith: `MO-${year}-` } }, select: { orderNumber: true } });
-        const max = all.reduce((m, r) => {
-          const n = parseInt(r.orderNumber.split('-')[2], 10);
-          return n > m ? n : m;
-        }, 0);
-        const newOrderNumber = `MO-${year}-${String(max + 1).padStart(3, '0')}`;
-        const allBatches = await tx.batch.findMany({ where: { batchNumber: { startsWith: `LOT-${year}-` } }, select: { batchNumber: true } });
-        const maxB = allBatches.reduce((m, r) => {
-          const n = parseInt(r.batchNumber.split('-')[2], 10);
-          return n > m ? n : m;
-        }, 0);
-        const newBatchNumber = `LOT-${year}-${String(maxB + 1).padStart(3, '0')}`;
-
-        const newBatch = await tx.batch.create({
-          data: {
-            batchNumber: newBatchNumber,
-            productId: batch.productId,
-            manufactureDate: new Date(),
-            expiryDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000),
-            quantity: batch.quantity,
-            status: 'IN_PROGRESS',
-            batchType: 'LOT',
-            origin: 'PRODUCTION',
-          },
-        });
-        reworkOrder = await tx.manufacturingOrder.create({
-          data: {
-            orderNumber: newOrderNumber,
-            productId: batch.productId,
-            plannedDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-            quantity: batch.quantity,
-            status: 'IN_PROGRESS',
-            batchId: newBatch.id,
-            userId: req.user.id,
-            reworkOfId: batch.manufacturingOrder?.id || null,
-          },
-          include: { product: true, batch: true },
-        });
+      } else {
+        // Purchase batch: block it permanently
+        await tx.batch.update({ where: { id: batchId }, data: { status: 'REJECTED' } });
       }
-      return { control, reworkOrder };
+      return { control };
     });
 
     if (batch.origin === 'PRODUCTION') {
       await notify({
         recipientRole: 'PRODUCTION_MANAGER',
-        message: `Batch ${batch.batchNumber} rejected — new order ${result.reworkOrder.orderNumber} created for rework`,
+        message: `Batch ${batch.batchNumber} rejected by QC — rework required. Order ${batch.manufacturingOrder?.orderNumber} is back in progress.`,
         type: 'WARNING',
-        relatedId: result.reworkOrder.id,
+        relatedId: batch.manufacturingOrder?.id,
         relatedType: 'manufacturing_order',
       });
     } else {
@@ -193,7 +154,7 @@ router.put('/batch/:batchId/reject', rbac('ADMIN', 'QUALITY_MANAGER'), async (re
       });
     }
 
-    res.json({ control: result.control, reworkOrder: result.reworkOrder });
+    res.json({ control: result.control });
   } catch (e) { next(e); }
 });
 

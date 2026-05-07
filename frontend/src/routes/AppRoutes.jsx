@@ -21,6 +21,7 @@ import AdminProducts from '../pages/admin/Products.jsx';
 import StockDashboard from '../pages/stock/Dashboard.jsx';
 import StockList from '../pages/stock/Stock.jsx';
 import StockMovements from '../pages/stock/Movements.jsx';
+import StockDeliveries from '../pages/stock/Deliveries.jsx';
 import BatchTracking from '../pages/stock/BatchTracking.jsx';
 import StockAlerts from '../pages/stock/Alerts.jsx';
 
@@ -70,6 +71,7 @@ export default function AppRoutes() {
         <Route path="/stock_manager" element={<StockDashboard />} />
         <Route path="/stock_manager/stock" element={<StockList />} />
         <Route path="/stock_manager/movements" element={<StockMovements />} />
+        <Route path="/stock_manager/deliveries" element={<StockDeliveries />} />
         <Route path="/stock_manager/batch-tracking" element={<BatchTracking />} />
         <Route path="/stock_manager/batch-tracking/:batchNumber" element={<BatchTracking />} />
         <Route path="/stock_manager/alerts" element={<StockAlerts />} />

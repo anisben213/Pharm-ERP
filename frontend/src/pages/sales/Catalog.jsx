@@ -38,6 +38,9 @@ export default function Catalog() {
               <div className="text-xl font-semibold text-success-700 mt-0.5">
                 {p.availableQuantity} <span className="text-sm font-normal text-slate-500">{p.unit}</span>
               </div>
+              <div className="text-sm font-medium text-primary-700 mt-1">
+                {Number(p.unitPrice || 0).toLocaleString()} DZD <span className="text-xs font-normal text-slate-500">/ {p.unit}</span>
+              </div>
             </div>
           </div>
           <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">

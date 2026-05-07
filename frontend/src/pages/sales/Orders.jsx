@@ -8,7 +8,7 @@ import { salesOrderService, clientService, productService } from '../../services
 import { useToast } from '../../hooks/useToast.js';
 
 function totalOf(o) {
-  return (o.items || []).reduce((s, it) => s + Number(it.unitPrice || 0) * Number(it.quantity || 0), 0);
+  return Number(o.totalAmount || 0);
 }
 
 export default function SalesOrders() {
@@ -48,7 +48,7 @@ export default function SalesOrders() {
             render: (o) => new Date(o.createdAt).toLocaleDateString(),
           },
           { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
-          { key: 'total', header: 'Total', render: (o) => `$${totalOf(o).toFixed(2)}` },
+          { key: 'total', header: 'Total', render: (o) => `${totalOf(o).toLocaleString()} DZD` },
         ]}
         data={orders}
         loading={loading}
@@ -100,11 +100,17 @@ function CreateSalesOrderModal({ onClose, onSaved }) {
 
   const productById = useMemo(() => Object.fromEntries(catalog.map((p) => [p.id, p])), [catalog]);
 
-  const addProduct = () => setItems([...items, { productId: catalog[0]?.id || '', quantity: 1, unitPrice: 50 }]);
+  const addProduct = () => {
+    const p = catalog[0];
+    setItems([...items, { productId: p?.id || '', quantity: 1 }]);
+  };
   const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
   const updateItem = (i, patch) => setItems(items.map((it, idx) => idx === i ? { ...it, ...patch } : it));
 
-  const total = items.reduce((s, it) => s + Number(it.unitPrice || 0) * Number(it.quantity || 0), 0);
+  const total = items.reduce((s, it) => {
+    const p = productById[it.productId];
+    return s + Number(p?.unitPrice || 0) * Number(it.quantity || 0);
+  }, 0);
 
   const canNext1 = !!clientId;
   const canNext2 = items.length > 0 && items.every((it) => it.productId && Number(it.quantity) > 0
@@ -118,7 +124,6 @@ function CreateSalesOrderModal({ onClose, onSaved }) {
         items: items.map((it) => ({
           productId: it.productId,
           quantity: Number(it.quantity),
-          unitPrice: Number(it.unitPrice),
         })),
       });
       setCreated(order);
@@ -192,6 +197,7 @@ function CreateSalesOrderModal({ onClose, onSaved }) {
                 const p = productById[it.productId];
                 const stock = p?.availableQuantity || 0;
                 const overStock = Number(it.quantity) > stock;
+                const lineTotal = Number(p?.unitPrice || 0) * Number(it.quantity || 0);
                 return (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-end border border-slate-200 rounded-lg p-3">
                     <div className="col-span-5">
@@ -214,9 +220,11 @@ function CreateSalesOrderModal({ onClose, onSaved }) {
                       {p && <div className="text-[10px] text-slate-500 mt-0.5">Stock: {stock} {p.unit}</div>}
                     </div>
                     <div className="col-span-3">
-                      <label className="label-xs block mb-1">Unit Price ($)</label>
-                      <input type="number" min="0" step="0.01" className="input" value={it.unitPrice}
-                        onChange={(e) => updateItem(idx, { unitPrice: e.target.value })} />
+                      <label className="label-xs block mb-1">Unit Price</label>
+                      <div className="input bg-slate-50 text-slate-700 cursor-not-allowed">
+                        {Number(p?.unitPrice || 0).toLocaleString()} DZD
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">Subtotal: {lineTotal.toLocaleString()} DZD</div>
                     </div>
                     <div className="col-span-1 flex justify-end">
                       <button type="button" onClick={() => removeItem(idx)}
@@ -243,16 +251,17 @@ function CreateSalesOrderModal({ onClose, onSaved }) {
                 <div className="border border-slate-200 rounded-lg divide-y divide-slate-100">
                   {items.map((it, idx) => {
                     const p = productById[it.productId];
+                    const lineTotal = Number(p?.unitPrice || 0) * Number(it.quantity || 0);
                     return (
                       <div key={idx} className="px-3 py-2 flex justify-between text-sm">
                         <div>
                           <div className="font-medium text-ink-800">{p?.name}</div>
                           <div className="text-xs text-slate-500">
-                            {it.quantity} {p?.unit} × ${Number(it.unitPrice).toFixed(2)}
+                            {it.quantity} {p?.unit} × {Number(p?.unitPrice || 0).toLocaleString()} DZD
                           </div>
                         </div>
                         <div className="font-medium text-ink-800">
-                          ${(Number(it.quantity) * Number(it.unitPrice)).toFixed(2)}
+                          {lineTotal.toLocaleString()} DZD
                         </div>
                       </div>
                     );
@@ -261,7 +270,7 @@ function CreateSalesOrderModal({ onClose, onSaved }) {
               </div>
               <div className="flex justify-between items-center border-t border-slate-200 pt-3">
                 <span className="text-slate-500">Total</span>
-                <span className="text-xl font-semibold text-ink-800">${total.toFixed(2)}</span>
+                <span className="text-xl font-semibold text-ink-800">{total.toLocaleString()} DZD</span>
               </div>
             </div>
           )}

@@ -52,13 +52,13 @@ async function main() {
 
   // ── PRODUCTS ───────────────────────────────────────────────
   const productsData = [
-    { name: 'Paracetamol API', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 50 },
-    { name: 'Amoxicillin API', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 30 },
-    { name: 'Microcrystalline Cellulose', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 80 },
-    { name: 'Magnesium Stearate', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 20 },
-    { name: 'Paracetamol 500mg Tablet', category: ProductCategory.FINISHED_PRODUCT, unit: 'box', minStockLevel: 200 },
-    { name: 'Amoxicillin 500mg Capsule', category: ProductCategory.FINISHED_PRODUCT, unit: 'box', minStockLevel: 150 },
-    { name: 'Ibuprofen 400mg Tablet', category: ProductCategory.FINISHED_PRODUCT, unit: 'box', minStockLevel: 180 },
+    { name: 'Paracetamol API', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 50, unitPrice: 1200 },
+    { name: 'Amoxicillin API', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 30, unitPrice: 2500 },
+    { name: 'Microcrystalline Cellulose', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 80, unitPrice: 350 },
+    { name: 'Magnesium Stearate', category: ProductCategory.RAW_MATERIAL, unit: 'kg', minStockLevel: 20, unitPrice: 600 },
+    { name: 'Paracetamol 500mg Tablet', category: ProductCategory.FINISHED_PRODUCT, unit: 'box', minStockLevel: 200, unitPrice: 450 },
+    { name: 'Amoxicillin 500mg Capsule', category: ProductCategory.FINISHED_PRODUCT, unit: 'box', minStockLevel: 150, unitPrice: 780 },
+    { name: 'Ibuprofen 400mg Tablet', category: ProductCategory.FINISHED_PRODUCT, unit: 'box', minStockLevel: 180, unitPrice: 520 },
   ];
   const products = [];
   for (const p of productsData) {
@@ -352,7 +352,10 @@ async function main() {
   // ── SALES ──────────────────────────────────────────────────
   async function createSalesOrder({ client, items, status, daysOld }) {
     let total = 0;
-    for (const it of items) total += it.quantity * 50; // dummy price
+    for (const it of items) {
+      const product = await prisma.product.findUnique({ where: { id: it.batch.productId } });
+      total += it.quantity * Number(product.unitPrice || 0);
+    }
     const order = await prisma.salesOrder.create({
       data: {
         orderNumber: `SO-${year}-${seq(soCounter++)}`,

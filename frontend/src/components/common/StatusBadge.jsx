@@ -15,6 +15,7 @@ const STYLES = {
   DELIVERED: 'bg-success-50 text-success-700 border-success-100',
   PREPARED: 'bg-warning-50 text-warning-700 border-warning-100',
   SHIPPED: 'bg-purple-50 text-purple-700 border-purple-100',
+  CANCELLED: 'bg-danger-50 text-danger-700 border-danger-100',
   // Categories
   FINISHED_PRODUCT: 'bg-primary-50 text-primary-700 border-primary-100',
   RAW_MATERIAL: 'bg-purple-50 text-purple-700 border-purple-100',

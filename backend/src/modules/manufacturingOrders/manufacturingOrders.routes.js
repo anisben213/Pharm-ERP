@@ -11,7 +11,11 @@ router.use(auth);
 router.get('/', rbac('ADMIN', 'PRODUCTION_MANAGER', 'QUALITY_MANAGER', 'STOCK_MANAGER'), async (req, res, next) => {
   try {
     const orders = await prisma.manufacturingOrder.findMany({
-      include: { product: true, batch: true, reworkOf: true },
+      include: {
+        product: true,
+        batch: { include: { qualityControls: { orderBy: { controlDate: 'desc' }, take: 5 } } },
+        reworkOf: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ orders });

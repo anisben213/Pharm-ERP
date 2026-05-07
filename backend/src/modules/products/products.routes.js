@@ -28,6 +28,7 @@ router.get('/catalog', rbac('ADMIN', 'SALES_MANAGER'), async (req, res, next) =>
         id: p.id,
         name: p.name,
         unit: p.unit,
+        unitPrice: p.unitPrice,
         availableQuantity: totalQty,
         earliestExpiry,
         batches: p.batches.map((b) => ({
@@ -55,7 +56,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', rbac('ADMIN'), async (req, res, next) => {
   try {
-    const { name, category, unit, minStockLevel } = req.body || {};
+    const { name, category, unit, minStockLevel, unitPrice } = req.body || {};
     if (!name || !category || !unit) throw new ApiError(400, 'name, category, unit required');
     if (!CATEGORIES.includes(category)) throw new ApiError(400, 'Invalid category');
     const product = await prisma.product.create({
@@ -64,6 +65,7 @@ router.post('/', rbac('ADMIN'), async (req, res, next) => {
         category,
         unit,
         minStockLevel: typeof minStockLevel === 'number' ? minStockLevel : 0,
+        unitPrice: typeof unitPrice === 'number' ? unitPrice : 0,
         createdById: req.user.id,
       },
     });
@@ -74,7 +76,7 @@ router.post('/', rbac('ADMIN'), async (req, res, next) => {
 router.put('/:id', rbac('ADMIN'), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { name, category, unit, minStockLevel } = req.body || {};
+    const { name, category, unit, minStockLevel, unitPrice } = req.body || {};
     const data = {};
     if (name !== undefined) data.name = name;
     if (unit !== undefined) data.unit = unit;
@@ -83,6 +85,7 @@ router.put('/:id', rbac('ADMIN'), async (req, res, next) => {
       data.category = category;
     }
     if (minStockLevel !== undefined) data.minStockLevel = Number(minStockLevel);
+    if (unitPrice !== undefined) data.unitPrice = Number(unitPrice);
     const product = await prisma.product.update({ where: { id }, data });
     res.json({ product });
   } catch (e) {

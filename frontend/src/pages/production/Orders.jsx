@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Lock } from 'lucide-react';
+import { Plus, Lock, AlertTriangle } from 'lucide-react';
 import Table from '../../components/common/Table.jsx';
 import Modal, { ConfirmModal } from '../../components/common/Modal.jsx';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
@@ -54,7 +54,16 @@ export default function ProductionOrders() {
             render: (o) => o.plannedDate ? new Date(o.plannedDate).toLocaleDateString() : '—',
           },
           { key: 'quantity', header: 'Quantity', render: (o) => o.batch?.quantity ?? '—' },
-          { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
+          { key: 'status', header: 'Status', render: (o) => (
+            <div className="flex items-center gap-2">
+              <StatusBadge status={o.status} />
+              {o.batch?.qualityControls?.some((q) => q.result === 'REJECTED') && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger-600 bg-danger-50 border border-danger-200 rounded px-1.5 py-0.5">
+                  <AlertTriangle size={11} /> Rework
+                </span>
+              )}
+            </div>
+          ) },
         ]}
         data={orders}
         loading={loading}

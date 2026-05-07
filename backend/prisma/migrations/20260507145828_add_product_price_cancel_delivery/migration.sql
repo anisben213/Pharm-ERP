@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "DeliveryStatus" ADD VALUE 'CANCELLED';
+
+-- AlterTable
+ALTER TABLE "Product" ADD COLUMN     "unitPrice" DOUBLE PRECISION NOT NULL DEFAULT 0;

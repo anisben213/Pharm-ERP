@@ -34,4 +34,17 @@ router.put('/:id', rbac('ADMIN', 'PURCHASE_MANAGER'), async (req, res, next) => 
   }
 });
 
+router.delete('/:id', rbac('ADMIN', 'PURCHASE_MANAGER'), async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const linked = await prisma.purchaseOrder.count({ where: { supplierId: id } });
+    if (linked > 0) throw new ApiError(400, 'Cannot delete supplier with existing purchase orders');
+    await prisma.supplier.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.code === 'P2025') return next(new ApiError(404, 'Supplier not found'));
+    next(e);
+  }
+});
+
 module.exports = router;

@@ -73,12 +73,14 @@ enum SalesStatus {
   PENDING
   CONFIRMED
   DELIVERED
+  CANCELLED
 }
 
 enum DeliveryStatus {
   PREPARED
   SHIPPED
   DELIVERED
+  CANCELLED
 }
 
 enum NotificationType {
@@ -145,6 +147,7 @@ model Product {
   category      ProductCategory
   unit          String
   minStockLevel Float           @default(0)
+  unitPrice     Float           @default(0) // price in DZD
   createdById   Int
   createdAt     DateTime        @default(now())
 
@@ -247,6 +250,7 @@ model ManufacturingOrder {
   userId      Int
   reworkOfId  Int?                @unique
   createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   product  Product @relation(fields: [productId], references: [id])
   user     User    @relation(fields: [userId], references: [id])

@@ -38,8 +38,8 @@ router.get('/:id', rbac('ADMIN', 'SALES_MANAGER', 'STOCK_MANAGER'), async (req, 
   } catch (e) { next(e); }
 });
 
-// Create pending order. items: [{ productId, quantity, unitPrice }]
-// Auto-pick batches by FEFO during confirmation, not creation.
+// Create pending order. items: [{ productId, quantity }]  -- unitPrice taken from product (admin-managed)
+// Auto-pick batches by FEFO during creation.
 router.post('/', rbac('ADMIN', 'SALES_MANAGER'), async (req, res, next) => {
   try {
     const { clientId, items } = req.body || {};
@@ -67,8 +67,7 @@ router.post('/', rbac('ADMIN', 'SALES_MANAGER'), async (req, res, next) => {
         itemsData.push({ batchId: b.id, productId: product.id, quantity: take });
         remaining -= take;
       }
-      const unitPrice = Number(it.unitPrice ?? 50);
-      total += unitPrice * Number(it.quantity);
+      total += Number(product.unitPrice || 0) * Number(it.quantity);
     }
 
     const orderNumber = await nextCode('SO');
@@ -119,10 +118,19 @@ router.put('/:id/confirm', rbac('ADMIN', 'SALES_MANAGER'), async (req, res, next
           },
         });
       }
+      const noteNumber = await nextCode('DN');
+      await tx.deliveryNote.create({
+        data: {
+          noteNumber,
+          salesOrderId: order.id,
+          deliveryDate: new Date(),
+          status: 'PREPARED',
+        },
+      });
       return tx.salesOrder.update({
         where: { id },
         data: { status: 'CONFIRMED' },
-        include: { client: true, items: { include: { batch: true, product: true } } },
+        include: { client: true, items: { include: { batch: true, product: true } }, deliveryNote: true },
       });
     });
 

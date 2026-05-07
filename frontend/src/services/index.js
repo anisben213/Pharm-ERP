@@ -28,6 +28,7 @@ export const supplierService = {
   list: () => api.get('/suppliers').then((r) => r.data.suppliers),
   create: (data) => api.post('/suppliers', data).then((r) => r.data.supplier),
   update: (id, data) => api.put(`/suppliers/${id}`, data).then((r) => r.data.supplier),
+  remove: (id) => api.delete(`/suppliers/${id}`).then((r) => r.data),
 };
 
 export const clientService = {

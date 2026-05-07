@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import Table from '../../components/common/Table.jsx';
-import Modal from '../../components/common/Modal.jsx';
+import Modal, { ConfirmModal } from '../../components/common/Modal.jsx';
 import ActionButton from '../../components/common/ActionButton.jsx';
 import { supplierService } from '../../services/index.js';
 import { useToast } from '../../hooks/useToast.js';
 
 export default function Suppliers() {
+  const toast = useToast();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [working, setWorking] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -17,6 +20,17 @@ export default function Suppliers() {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  const handleDelete = async () => {
+    setWorking(true);
+    try {
+      await supplierService.remove(deleting.id);
+      toast.success(`Supplier "${deleting.name}" removed`);
+      setDeleting(null);
+      load();
+    } catch (e) { toast.error(e.response?.data?.message || 'Failed to remove supplier'); }
+    finally { setWorking(false); }
+  };
 
   return (
     <div className="space-y-4">
@@ -35,15 +49,30 @@ export default function Suppliers() {
           </ActionButton>
         )}
         actions={(s) => (
-          <ActionButton variant="view" size="sm" icon={<Pencil size={14} />} onClick={() => setModal({ mode: 'edit', supplier: s })}>
-            Edit
-          </ActionButton>
+          <div className="flex items-center justify-center gap-2">
+            <ActionButton variant="view" size="sm" icon={<Pencil size={14} />} onClick={() => setModal({ mode: 'edit', supplier: s })}>
+              Edit
+            </ActionButton>
+            <ActionButton variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={() => setDeleting(s)}>
+              Remove
+            </ActionButton>
+          </div>
         )}
         empty={{ icon: '🏢', title: 'No suppliers', message: 'Add your first supplier.' }}
       />
 
       {modal && <SupplierModal mode={modal.mode} supplier={modal.supplier}
         onClose={() => setModal(null)} onSaved={() => { setModal(null); load(); }} />}
+
+      <ConfirmModal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={handleDelete}
+        title="Remove supplier?"
+        message={`"${deleting?.name}" will be permanently deleted. This is only possible if the supplier has no purchase orders.`}
+        confirmLabel="Remove"
+        loading={working}
+      />
     </div>
   );
 }

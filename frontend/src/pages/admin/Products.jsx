@@ -26,6 +26,7 @@ export default function AdminProducts() {
           { key: 'name', header: 'Name', sortable: true },
           { key: 'category', header: 'Category', render: (p) => <StatusBadge status={p.category} /> },
           { key: 'unit', header: 'Unit' },
+          { key: 'unitPrice', header: 'Unit Price', render: (p) => `${Number(p.unitPrice || 0).toLocaleString()} DZD` },
           { key: 'minStockLevel', header: 'Min. Level', render: (p) => `${p.minStockLevel} ${p.unit}` },
         ]}
         data={products}
@@ -71,6 +72,7 @@ function ProductFormModal({ mode, product, onClose, onSaved }) {
     category: product?.category || 'FINISHED_PRODUCT',
     unit: product?.unit || 'box',
     minStockLevel: product?.minStockLevel ?? 0,
+    unitPrice: product?.unitPrice ?? 0,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -78,7 +80,7 @@ function ProductFormModal({ mode, product, onClose, onSaved }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const payload = { ...form, minStockLevel: Number(form.minStockLevel) };
+      const payload = { ...form, minStockLevel: Number(form.minStockLevel), unitPrice: Number(form.unitPrice) };
       if (mode === 'create') {
         await productService.create(payload);
         toast.success('Product created');
@@ -124,10 +126,17 @@ function ProductFormModal({ mode, product, onClose, onSaved }) {
             <input className="input" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
           </div>
         </div>
-        <div>
-          <label className="label-xs block mb-1.5">Minimum Stock Level</label>
-          <input type="number" min="0" step="0.01" className="input" required value={form.minStockLevel}
-            onChange={(e) => setForm({ ...form, minStockLevel: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label-xs block mb-1.5">Minimum Stock Level</label>
+            <input type="number" min="0" step="0.01" className="input" required value={form.minStockLevel}
+              onChange={(e) => setForm({ ...form, minStockLevel: e.target.value })} />
+          </div>
+          <div>
+            <label className="label-xs block mb-1.5">Unit Price (DZD)</label>
+            <input type="number" min="0" step="0.01" className="input" required value={form.unitPrice}
+              onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} />
+          </div>
         </div>
       </form>
     </Modal>

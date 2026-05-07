@@ -43,11 +43,20 @@ router.post('/', rbac('ADMIN', 'STOCK_MANAGER'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.put('/:id/status', rbac('ADMIN', 'STOCK_MANAGER'), async (req, res, next) => {
+router.put('/:id/status', rbac('ADMIN', 'STOCK_MANAGER', 'SALES_MANAGER'), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     const { status } = req.body || {};
-    if (!['PREPARED', 'SHIPPED', 'DELIVERED'].includes(status)) throw new ApiError(400, 'Invalid status');
+    if (!['PREPARED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].includes(status)) throw new ApiError(400, 'Invalid status');
+    const existing = await prisma.deliveryNote.findUnique({
+      where: { id },
+      include: { salesOrder: { include: { items: true } } },
+    });
+    if (!existing) throw new ApiError(404, 'Delivery note not found');
+    if (existing.status === 'DELIVERED' || existing.status === 'CANCELLED') {
+      throw new ApiError(400, `Delivery note is already ${existing.status.toLowerCase()}`);
+    }
+
     const note = await prisma.$transaction(async (tx) => {
       const updated = await tx.deliveryNote.update({
         where: { id },
@@ -56,6 +65,22 @@ router.put('/:id/status', rbac('ADMIN', 'STOCK_MANAGER'), async (req, res, next)
       });
       if (status === 'DELIVERED') {
         await tx.salesOrder.update({ where: { id: updated.salesOrderId }, data: { status: 'DELIVERED' } });
+      }
+      if (status === 'CANCELLED') {
+        // Restock allocated batches and create ENTRY movements
+        for (const it of existing.salesOrder.items) {
+          await tx.batch.update({ where: { id: it.batchId }, data: { quantity: { increment: it.quantity } } });
+          await tx.stockMovement.create({
+            data: {
+              batchId: it.batchId,
+              type: 'ENTRY',
+              quantity: it.quantity,
+              reason: `Cancelled sales order ${existing.salesOrder.orderNumber} — restocked`,
+              userId: req.user.id,
+            },
+          });
+        }
+        await tx.salesOrder.update({ where: { id: updated.salesOrderId }, data: { status: 'CANCELLED' } });
       }
       return updated;
     });
